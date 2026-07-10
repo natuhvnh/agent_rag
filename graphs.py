@@ -1,4 +1,5 @@
 from langgraph.graph import END, StateGraph
+from langchain_core.runnables import RunnableConfig
 from pprint import pprint
 from models import (
     QualitativeRetrievalGraphState,
@@ -21,6 +22,7 @@ from nodes import (
     replan_step,
     retrieve_or_answer,
     can_be_answered,
+    rewrite_queries
 )
 
 
@@ -108,6 +110,7 @@ def build_qualitative_answer_workflow():
 #
 def build_agent_workflow():
     agent_workflow = StateGraph(PlanExecute)
+    agent_workflow.add_node("rewrite_question", rewrite_queries)
     agent_workflow.add_node("anonymize_question", anonymize_queries)
     agent_workflow.add_node("planner", plan_step)
     agent_workflow.add_node("de_anonymize_plan", deanonymize_queries)
@@ -127,7 +130,8 @@ def build_agent_workflow():
     agent_workflow.add_node(
         "get_final_answer", run_qualitative_answer_workflow_for_final_answer
     )
-    agent_workflow.set_entry_point("anonymize_question")
+    agent_workflow.set_entry_point("rewrite_question")
+    agent_workflow.add_edge("rewrite_question", "anonymize_question")
     agent_workflow.add_edge("anonymize_question", "planner")
     agent_workflow.add_edge("planner", "de_anonymize_plan")
     agent_workflow.add_edge("de_anonymize_plan", "break_down_plan")
@@ -163,12 +167,13 @@ def build_agent_workflow():
     return final_workflow
 
 
-def run_qualitative_chunks_retrieval_workflow(state):
+def run_qualitative_chunks_retrieval_workflow(state, config: RunnableConfig):
     """
     Run the qualitative chunks retrieval workflow.
 
     Args:
         state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
 
     Returns:
         The state with the updated aggregated context.
@@ -177,8 +182,9 @@ def run_qualitative_chunks_retrieval_workflow(state):
     print("Running the qualitative chunks retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
+    sub_config = {"recursion_limit": config.get("recursion_limit")}
     # Stream outputs from the workflow app
-    for output in qualitative_chunks_retrieval_workflow_app.stream(inputs):
+    for output in qualitative_chunks_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")
@@ -189,12 +195,13 @@ def run_qualitative_chunks_retrieval_workflow(state):
     return state
 
 
-def run_qualitative_summaries_retrieval_workflow(state):
+def run_qualitative_summaries_retrieval_workflow(state, config: RunnableConfig):
     """
     Run the qualitative summaries retrieval workflow.
 
     Args:
         state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
 
     Returns:
         The state with the updated aggregated context.
@@ -203,7 +210,8 @@ def run_qualitative_summaries_retrieval_workflow(state):
     print("Running the qualitative summaries retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
-    for output in qualitative_summaries_retrieval_workflow_app.stream(inputs):
+    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    for output in qualitative_summaries_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")
@@ -213,12 +221,13 @@ def run_qualitative_summaries_retrieval_workflow(state):
     return state
 
 
-def run_qualitative_book_quotes_retrieval_workflow(state):
+def run_qualitative_book_quotes_retrieval_workflow(state, config: RunnableConfig):
     """
     Run the qualitative book quotes retrieval workflow.
 
     Args:
         state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
 
     Returns:
         The state with the updated aggregated context.
@@ -227,7 +236,8 @@ def run_qualitative_book_quotes_retrieval_workflow(state):
     print("Running the qualitative book quotes retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
-    for output in qualitative_book_quotes_retrieval_workflow_app.stream(inputs):
+    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    for output in qualitative_book_quotes_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")
@@ -237,12 +247,13 @@ def run_qualitative_book_quotes_retrieval_workflow(state):
     return state
 
 
-def run_qualitative_answer_workflow(state):
+def run_qualitative_answer_workflow(state, config: RunnableConfig):
     """
     Run the qualitative answer workflow.
 
     Args:
         state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
 
     Returns:
         The state with the updated aggregated context.
@@ -252,7 +263,8 @@ def run_qualitative_answer_workflow(state):
     question = state["query_to_retrieve_or_answer"]
     context = state["curr_context"]
     inputs = {"question": question, "context": context}
-    for output in qualitative_answer_workflow_app.stream(inputs):
+    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    for output in qualitative_answer_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")
@@ -262,12 +274,13 @@ def run_qualitative_answer_workflow(state):
     return state
 
 
-def run_qualitative_answer_workflow_for_final_answer(state):
+def run_qualitative_answer_workflow_for_final_answer(state, config: RunnableConfig):
     """
     Run the qualitative answer workflow for the final answer.
 
     Args:
         state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
 
     Returns:
         The state with the updated response.
@@ -277,7 +290,8 @@ def run_qualitative_answer_workflow_for_final_answer(state):
     question = state["question"]
     context = state["aggregated_context"]
     inputs = {"question": question, "context": context}
-    for output in qualitative_answer_workflow_app.stream(inputs):
+    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    for output in qualitative_answer_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")

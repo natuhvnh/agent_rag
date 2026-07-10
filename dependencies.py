@@ -16,6 +16,7 @@ from models import (
     CanBeAnsweredAlready,
     Plan,
     ActPossibleResults,
+    RewriteQuestion
 )
 from prompts import (
     is_grounded_on_facts_prompt_template,
@@ -30,6 +31,7 @@ from prompts import (
     break_down_plan_prompt_template,
     planner_prompt_template,
     replanner_prompt_template,
+    rewrite_prompt_template
 )
 
 load_dotenv()
@@ -139,6 +141,16 @@ task_handler_prompt = PromptTemplate(
     ],
 )
 task_handler_chain = task_handler_prompt | llm.with_structured_output(TaskHandlerOutput)
+#
+rewrite_question_parser = JsonOutputParser(pydantic_object=RewriteQuestion)
+rewrite_question_prompt = PromptTemplate(
+    template=rewrite_prompt_template,
+    input_variables=["question"],
+    partial_variables={
+        "format_instructions": rewrite_question_parser.get_format_instructions()
+    },
+)
+rewrite_question_chain = rewrite_question_prompt | llm | rewrite_question_parser
 #
 anonymize_question_parser = JsonOutputParser(pydantic_object=AnonymizeQuestion)
 anonymize_question_prompt = PromptTemplate(

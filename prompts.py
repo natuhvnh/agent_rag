@@ -8,7 +8,7 @@ keep_only_relevant_content_prompt_template = """
     """
 
 rewrite_prompt_template = """
-You are a question re-writer that converts an input question to a better version optimized for vectorstore retrieval.
+You are a question re-writer that converts an input question to a better version optimized for vectorstore retrieval and keyword extraction.
 Analyze the input question {question} and try to reason about the underlying semantic intent / meaning.
 {format_instructions}
 """

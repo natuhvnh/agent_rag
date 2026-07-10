@@ -15,6 +15,7 @@ from dependencies import (
     replanner,
     can_be_answered_already_chain,
     de_anonymize_plan_chain,
+    rewrite_question_chain
 )
 from helper_functions import escape_quotes, text_wrap
 
@@ -306,6 +307,30 @@ def retrieve_or_answer(state: PlanExecute):
             f"'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer'. "
             f"Got: {state['tool']!r}"
         )
+
+
+def rewrite_queries(state: PlanExecute):
+    """
+    Re-write the question.
+
+    Args:
+        state: The current state of the plan execution.
+
+    Returns:
+        The updated state with the rewritten questions for semantic and keyword search.
+    """
+    state["curr_state"] = "rewrite_question"
+    print("Re-write question")
+    pprint("--------------------")
+    rewrite_question_output = rewrite_question_chain.invoke(state["question"])
+    rewritten_question = rewrite_question_output["rewritten_question"]
+    keyword_question = rewrite_question_output["keyword_question"]
+    print(f"rewrite_querry: {rewritten_question} AND {keyword_question}")
+    pprint("--------------------")
+    state["original_question"] = state["question"]
+    state["question"] = rewritten_question
+    state["keyword_question"] = keyword_question
+    return state
 
 
 def anonymize_queries(state: PlanExecute):

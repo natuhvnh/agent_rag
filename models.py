@@ -78,7 +78,9 @@ class PlanExecute(TypedDict):
 
     Attributes:
         curr_state (str): The current state or status of the execution.
-        question (str): The original user question.
+        question (str): The user question. Can be original question or rewritten question
+        original_question (str): The original question
+        keyword_question (str): The rewritten question used for keyword extraction
         anonymized_question (str): The anonymized version of the question (entities replaced with variables).
         query_to_retrieve_or_answer (str): The query to be used for retrieval or answering.
         plan (List[str]): The current plan as a list of steps to execute.
@@ -92,6 +94,8 @@ class PlanExecute(TypedDict):
 
     curr_state: str
     question: str
+    original_question: str
+    keyword_question: str
     anonymized_question: str
     query_to_retrieve_or_answer: str
     plan: List[str]
@@ -150,6 +154,20 @@ class TaskHandlerOutput(BaseModel):
     ] = Field(
         description="The tool to be used should be either retrieve_chunks, retrieve_summaries, retrieve_quotes, or answer_from_context."
     )
+
+
+class RewriteQuestion(BaseModel):
+    """
+    Output schema for the rew-write question.
+    Attributes:
+      rewritten_question (str): The rewritten question for semantic search.
+      keyword_question (str): The rewritten question for keyword search.
+      explanation (str): Explanation of the re-write process.
+    """
+
+    rewritten_question: str = Field(description="The rewritten question for semantic search")
+    keyword_question: str = Field(description="The rewritten question for keyword search")
+    explanation: str = Field(description="Explanation of the re-write process")
 
 
 class AnonymizeQuestion(BaseModel):

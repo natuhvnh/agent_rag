@@ -35,36 +35,26 @@ def execute_plan_and_print_steps(inputs, recursion_limit=45):
             response (str): The final answer or message if not found.
             final_state (dict): The final state after execution.
     """
-    # Configuration for the workflow (limits recursion to avoid infinite loops)
     config = {"recursion_limit": recursion_limit}
     try:
         # Stream the outputs from the plan_and_execute_app workflow
         for plan_output in plan_and_execute_app.stream(inputs, config=config):
-            # Iterate through each step's output and print the current state
             for _, agent_state_value in plan_output.items():
                 pass  # agent_state_value holds the latest state after each node execution
                 print(f" curr step: {agent_state_value}")
-        # Extract the final response from the last state
         response = agent_state_value["response"]
     except langgraph.errors.GraphRecursionError:
-        # Handle the case where the recursion limit is reached
         response = "The answer wasn't found in the data."
     # Save the final state for further inspection or evaluation
     final_state = agent_state_value
-    # Print the final answer in a wrapped format for readability
     print(text_wrap(f" the final answer is: {response}"))
     return response, final_state
 
 
 #
 if __name__ == "__main__":
-    # try:
-    #     display(Image(plan_and_execute_app.get_graph(xray=True).draw_mermaid_png()))
-    # except Exception as e:
-    #     print(f"Skipping graph visualization (mermaid rendering failed): {e}")
-    #
     initial_input = {
-        "question": "who is harry potter?",
+        "question": "who is Harry Potter?",
         "past_steps": [],
         "aggregated_context": "",
         "tool": "",
