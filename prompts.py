@@ -4,6 +4,7 @@ keep_only_relevant_content_prompt_template = """
     Your goal is just to filter out the non relevant information.
     You can remove parts of sentences that are not relevant to the query or remove whole sentences that are not relevant to the query.
     DO NOT ADD ANY NEW INFORMATION THAT IS NOT IN THE RETRIEVED DOCUMENTS.
+    {feedback}
     Output the filtered relevant content.
     """
 
@@ -51,6 +52,7 @@ Without any additional context about Harry's background or the gift-giver's moti
 
 For the question below, provide your answer by first showing your step-by-step reasoning process, breaking down the problem into a chain of thought before arriving at the final answer,
  just like in the previous examples.
+{feedback}
 Context
 {context}
 Question

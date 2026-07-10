@@ -22,6 +22,9 @@ class IsGroundedOnFacts(BaseModel):
     grounded_on_facts: bool = Field(
         description="Answer is grounded in the facts, 'yes' or 'no'"
     )
+    explanation: str = Field(
+        description="An explanation of why the answer is or is not grounded in the facts."
+    )
 
 
 class QuestionAnswer(BaseModel):
@@ -50,11 +53,17 @@ class QualitativeRetrievalGraphState(TypedDict):
         question (str): The input question to be answered.
         context (str): The context retrieved from the source (e.g., book chunks, summaries, or quotes).
         relevant_context (str): The distilled or filtered context that is most relevant to the question.
+        distill_attempts (int): Number of times the distill/ground loop has run.
+        grounded (bool): Whether the distilled content was judged grounded on the original context.
+        grounding_feedback (str): Explanation from the grounding check, fed back into the next distill attempt.
     """
 
     question: str
     context: str
     relevant_context: str
+    distill_attempts: int
+    grounded: bool
+    grounding_feedback: str
 
 
 class QualitativeAnswerGraphState(TypedDict):
@@ -65,11 +74,17 @@ class QualitativeAnswerGraphState(TypedDict):
         question (str): The input question to be answered.
         context (str): The context used to answer the question.
         answer (str): The generated answer to the question.
+        answer_attempts (int): Number of times the answer/ground loop has run.
+        grounded (bool): Whether the answer was judged grounded on the context.
+        grounding_feedback (str): Explanation from the grounding check, fed back into the next answer attempt.
     """
 
     question: str
     context: str
     answer: str
+    answer_attempts: int
+    grounded: bool
+    grounding_feedback: str
 
 
 class PlanExecute(TypedDict):

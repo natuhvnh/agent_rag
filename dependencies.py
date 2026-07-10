@@ -43,6 +43,8 @@ llm = ChatOpenAI(
     api_key=azure_llm_key,
     max_tokens=2048,
     temperature=0.1,
+    timeout=60,
+    max_retries=2,
 )
 #
 embedding_base_url = os.getenv("embedding_base_url")
@@ -52,6 +54,8 @@ embeddings = OpenAIEmbeddings(
     model=embedding_deployment,
     base_url=f"{embedding_base_url}/openai/v1",
     api_key=embedding_key,
+    timeout=30,
+    max_retries=2,
 )
 # 2. Initialize Retrievers
 chunks_vector_store = FAISS.load_local(
@@ -99,7 +103,7 @@ can_be_answered_chain = answer_question_prompt | llm | can_be_answered_json_pars
 # Create the chain for filtering retrieved content down to what's relevant to the query
 keep_only_relevant_content_prompt = PromptTemplate(
     template=keep_only_relevant_content_prompt_template,
-    input_variables=["query", "retrieved_documents"],
+    input_variables=["query", "retrieved_documents", "feedback"],
 )
 keep_only_relevant_content_chain = (
     keep_only_relevant_content_prompt | llm.with_structured_output(KeepRelevantContent)
@@ -107,7 +111,7 @@ keep_only_relevant_content_chain = (
 # Create the chain for answering a question from context using chain-of-thought reasoning
 question_answer_from_context_cot_prompt = PromptTemplate(
     template=question_answer_cot_prompt_template,
-    input_variables=["context", "question"],
+    input_variables=["context", "question", "feedback"],
 )
 question_answer_from_context_cot_chain = (
     question_answer_from_context_cot_prompt

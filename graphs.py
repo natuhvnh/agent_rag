@@ -9,11 +9,13 @@ from models import (
 from nodes import (
     retrieve_chunks_context_per_question,
     keep_only_relevant_content,
-    is_distilled_content_grounded_on_content,
+    check_distilled_content_grounded,
+    route_after_grounding,
     retrieve_summaries_context_per_question,
     retrieve_book_quotes_context_per_question,
     answer_question_from_context,
-    is_answer_grounded_on_context,
+    check_answer_grounded_on_context,
+    route_after_answer_grounding,
     anonymize_queries,
     plan_step,
     deanonymize_queries,
@@ -33,13 +35,15 @@ def build_chunks_retrieval_workflow():
         "retrieve_chunks_context_per_question", retrieve_chunks_context_per_question
     )
     workflow.add_node("keep_only_relevant_content", keep_only_relevant_content)
+    workflow.add_node("check_distilled_grounding", check_distilled_content_grounded)
     workflow.set_entry_point("retrieve_chunks_context_per_question")
     workflow.add_edge(
         "retrieve_chunks_context_per_question", "keep_only_relevant_content"
     )
+    workflow.add_edge("keep_only_relevant_content", "check_distilled_grounding")
     workflow.add_conditional_edges(
-        "keep_only_relevant_content",
-        is_distilled_content_grounded_on_content,
+        "check_distilled_grounding",
+        route_after_grounding,
         {
             "grounded on the original context": END,
             "not grounded on the original context": "keep_only_relevant_content",
@@ -56,13 +60,15 @@ def build_qualitative_summaries_retrieval_workflow():
         retrieve_summaries_context_per_question,
     )
     workflow.add_node("keep_only_relevant_content", keep_only_relevant_content)
+    workflow.add_node("check_distilled_grounding", check_distilled_content_grounded)
     workflow.set_entry_point("retrieve_summaries_context_per_question")
     workflow.add_edge(
         "retrieve_summaries_context_per_question", "keep_only_relevant_content"
     )
+    workflow.add_edge("keep_only_relevant_content", "check_distilled_grounding")
     workflow.add_conditional_edges(
-        "keep_only_relevant_content",
-        is_distilled_content_grounded_on_content,
+        "check_distilled_grounding",
+        route_after_grounding,
         {
             "grounded on the original context": END,
             "not grounded on the original context": "keep_only_relevant_content",
@@ -79,13 +85,15 @@ def build_qualitative_book_quotes_retrieval_workflow():
         retrieve_book_quotes_context_per_question,
     )
     workflow.add_node("keep_only_relevant_content", keep_only_relevant_content)
+    workflow.add_node("check_distilled_grounding", check_distilled_content_grounded)
     workflow.set_entry_point("retrieve_book_quotes_context_per_question")
     workflow.add_edge(
         "retrieve_book_quotes_context_per_question", "keep_only_relevant_content"
     )
+    workflow.add_edge("keep_only_relevant_content", "check_distilled_grounding")
     workflow.add_conditional_edges(
-        "keep_only_relevant_content",
-        is_distilled_content_grounded_on_content,
+        "check_distilled_grounding",
+        route_after_grounding,
         {
             "grounded on the original context": END,
             "not grounded on the original context": "keep_only_relevant_content",
@@ -98,10 +106,12 @@ def build_qualitative_book_quotes_retrieval_workflow():
 def build_qualitative_answer_workflow():
     workflow = StateGraph(QualitativeAnswerGraphState)
     workflow.add_node("answer_question_from_context", answer_question_from_context)
+    workflow.add_node("check_answer_grounding", check_answer_grounded_on_context)
     workflow.set_entry_point("answer_question_from_context")
+    workflow.add_edge("answer_question_from_context", "check_answer_grounding")
     workflow.add_conditional_edges(
-        "answer_question_from_context",
-        is_answer_grounded_on_context,
+        "check_answer_grounding",
+        route_after_answer_grounding,
         {"hallucination": "answer_question_from_context", "grounded on context": END},
     )
     return workflow.compile()
@@ -182,7 +192,7 @@ def run_qualitative_chunks_retrieval_workflow(state, config: RunnableConfig):
     print("Running the qualitative chunks retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
-    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     # Stream outputs from the workflow app
     for output in qualitative_chunks_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
@@ -210,7 +220,7 @@ def run_qualitative_summaries_retrieval_workflow(state, config: RunnableConfig):
     print("Running the qualitative summaries retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
-    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_summaries_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
@@ -236,7 +246,7 @@ def run_qualitative_book_quotes_retrieval_workflow(state, config: RunnableConfig
     print("Running the qualitative book quotes retrieval workflow...")
     question = state["query_to_retrieve_or_answer"]
     inputs = {"question": question}
-    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_book_quotes_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
@@ -263,7 +273,7 @@ def run_qualitative_answer_workflow(state, config: RunnableConfig):
     question = state["query_to_retrieve_or_answer"]
     context = state["curr_context"]
     inputs = {"question": question, "context": context}
-    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_answer_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
@@ -290,7 +300,7 @@ def run_qualitative_answer_workflow_for_final_answer(state, config: RunnableConf
     question = state["question"]
     context = state["aggregated_context"]
     inputs = {"question": question, "context": context}
-    sub_config = {"recursion_limit": config.get("recursion_limit")}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_answer_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
