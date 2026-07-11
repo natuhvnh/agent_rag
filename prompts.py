@@ -9,8 +9,23 @@ keep_only_relevant_content_prompt_template = """
     """
 
 rewrite_prompt_template = """
-You are a question re-writer that converts an input question to a better version optimized for vectorstore retrieval and keyword extraction.
-Analyze the input question {question} and try to reason about the underlying semantic intent / meaning.
+You are an expert query rewriter for a Retrieval-Augmented Generation (RAG) system.
+Your task is to rewrite the user's question into retrieval-optimized queries for:
+1. Semantic vector search
+2. Keyword (BM25) search
+Given the input question:
+{question}
+Follow these rules:
+- Preserve the user's original intent.
+- Do NOT answer the question.
+- Rewrite the question into a standalone question if it depends on previous conversation.
+- Remove conversational filler and unnecessary words.
+- Preserve all important entities, product names, API names, table names, error codes, and technical terms exactly as written.
+- Expand abbreviations only when their meaning is obvious.
+- Add strongly implied keywords only when they improve retrieval.
+- Do not introduce new assumptions or facts.
+- Keep the semantic query natural and grammatically correct.
+- Keep the keyword query short and focused on important search terms.
 {format_instructions}
 """
 
@@ -137,8 +152,6 @@ You also receive the last tool used {last_tool}
 if {last_tool} was retrieve_chunks, use other tools than retrieve_chunks.
 You also have the past steps {past_steps} that you can use to make decisions and understand the context of the task.
 You also have the initial user's question {question} that you can use to make decisions and understand the context of the task.
-if you decide to use retrieve_chunks, retrieve_summaries, or retrieve_quotes, output the query to be used for the tool and also output the relevant tool.
-if you decide to use answer_from_context, output the question to be used for the tool, the context, and also that the tool to be used is answer_from_context.
 The tool field in your output must be set to exactly one of: retrieve_chunks, retrieve_summaries, retrieve_quotes, answer_from_context.
 """
 

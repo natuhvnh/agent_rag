@@ -120,10 +120,10 @@ def build_qualitative_answer_workflow():
 #
 def build_agent_workflow():
     agent_workflow = StateGraph(PlanExecute)
-    agent_workflow.add_node("rewrite_question", rewrite_queries)
     agent_workflow.add_node("anonymize_question", anonymize_queries)
     agent_workflow.add_node("planner", plan_step)
     agent_workflow.add_node("de_anonymize_plan", deanonymize_queries)
+    agent_workflow.add_node("rewrite_question", rewrite_queries)
     agent_workflow.add_node("break_down_plan", break_down_plan_step)
     agent_workflow.add_node("task_handler", run_task_handler_chain)
     agent_workflow.add_node(
@@ -140,11 +140,11 @@ def build_agent_workflow():
     agent_workflow.add_node(
         "get_final_answer", run_qualitative_answer_workflow_for_final_answer
     )
-    agent_workflow.set_entry_point("rewrite_question")
-    agent_workflow.add_edge("rewrite_question", "anonymize_question")
+    agent_workflow.set_entry_point("anonymize_question")
     agent_workflow.add_edge("anonymize_question", "planner")
     agent_workflow.add_edge("planner", "de_anonymize_plan")
-    agent_workflow.add_edge("de_anonymize_plan", "break_down_plan")
+    agent_workflow.add_edge("de_anonymize_plan", "rewrite_question")
+    agent_workflow.add_edge("rewrite_question", "break_down_plan")
     agent_workflow.add_edge("break_down_plan", "task_handler")
     agent_workflow.add_conditional_edges(
         "task_handler",
@@ -190,8 +190,8 @@ def run_qualitative_chunks_retrieval_workflow(state, config: RunnableConfig):
     """
     state["curr_state"] = "retrieve_chunks"
     print("Running the qualitative chunks retrieval workflow...")
-    question = state["query_to_retrieve_or_answer"]
-    inputs = {"question": question}
+    inputs = {"rewrite_question": state["rewrite_question"],
+              "keyword_question": state["keyword_question"]}
     sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     # Stream outputs from the workflow app
     for output in qualitative_chunks_retrieval_workflow_app.stream(inputs, config=sub_config):
@@ -218,8 +218,8 @@ def run_qualitative_summaries_retrieval_workflow(state, config: RunnableConfig):
     """
     state["curr_state"] = "retrieve_summaries"
     print("Running the qualitative summaries retrieval workflow...")
-    question = state["query_to_retrieve_or_answer"]
-    inputs = {"question": question}
+    inputs = {"rewrite_question": state["rewrite_question"],
+              "keyword_question": state["keyword_question"]}
     sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_summaries_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():
@@ -244,8 +244,8 @@ def run_qualitative_book_quotes_retrieval_workflow(state, config: RunnableConfig
     """
     state["curr_state"] = "retrieve_book_quotes"
     print("Running the qualitative book quotes retrieval workflow...")
-    question = state["query_to_retrieve_or_answer"]
-    inputs = {"question": question}
+    inputs = {"rewrite_question": state["rewrite_question"],
+              "keyword_question": state["keyword_question"]}
     sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
     for output in qualitative_book_quotes_retrieval_workflow_app.stream(inputs, config=sub_config):
         for _, value in output.items():

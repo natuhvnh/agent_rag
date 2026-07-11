@@ -63,8 +63,7 @@ def keep_only_relevant_content(state):
         "retrieved_documents": context,
         "feedback": feedback,
     }
-    print("Keeping only the relevant content...")
-    pprint("--------------------")
+    print("="*20 + "Keeping only the relevant content" + "="*20)
     output = keep_only_relevant_content_chain.invoke(input_data)
     relevant_content = output.relevant_content
     relevant_content = "".join(relevant_content)
@@ -144,8 +143,7 @@ def check_distilled_content_grounded(state):
             - "relevant_context": The distilled content, or the raw original context if
               attempts are exhausted without a grounded result.
     """
-    pprint("--------------------")
-    print("Determining if the distilled content is grounded on the original context...")
+    print("="*20 + "Determining if the distilled content is grounded on the original context" + "="*20)
     distilled_content = state["relevant_context"]
     original_context = state["context"]
     attempts = state.get("distill_attempts", 0)
@@ -219,9 +217,10 @@ def retrieve_chunks_context_per_question(state):
     top_k = 5
     rrf_k = 60
     print("Retrieving relevant chunks...")
-    question = state["question"]
+    question = state["rewrite_question"]
+    keyword_question = state["keyword_question"]
 
-    bm25_docs = bm25_retriever.invoke(question)
+    bm25_docs = bm25_retriever.invoke(keyword_question)
     vector_docs = chunks_query_retriever.invoke(question)
 
     scores = defaultdict(float)
@@ -264,7 +263,7 @@ def retrieve_summaries_context_per_question(state):
             - "question": The original question.
     """
     print("Retrieving relevant chapter summaries...")
-    question = state["question"]
+    question = state["rewrite_question"]
     # Retrieve relevant chapter summaries using the retriever
     docs_summaries = chapter_summaries_query_retriever.invoke(question)
     # Concatenate the content of the retrieved summaries, including chapter citation
@@ -287,7 +286,7 @@ def retrieve_book_quotes_context_per_question(state):
             - "context": Aggregated context string from relevant book quotes.
             - "question": The original question.
     """
-    question = state["question"]
+    question = state["rewrite_question"]
     print("Retrieving relevant book quotes...")
     # Retrieve relevant book quotes using the retriever
     docs_book_quotes = book_quotes_query_retriever.invoke(question)
@@ -375,10 +374,8 @@ def run_task_handler_chain(state: PlanExecute):
         The updated state of the plan execution.
     """
     state["curr_state"] = "task_handler"
-    print("the current plan is:")
+    print("="*20 + "Current plan" + "="*20)
     print(state["plan"])
-    pprint("--------------------")
-
     # Initialize past_steps if not present
     if not state.get("past_steps"):
         state["past_steps"] = []
@@ -408,17 +405,13 @@ def run_task_handler_chain(state: PlanExecute):
 
     # Decide which tool to use based on output
     if output.tool == "retrieve_chunks":
-        state["query_to_retrieve_or_answer"] = output.query
         state["tool"] = "retrieve_chunks"
     elif output.tool == "retrieve_summaries":
-        state["query_to_retrieve_or_answer"] = output.query
         state["tool"] = "retrieve_summaries"
     elif output.tool == "retrieve_quotes":
-        state["query_to_retrieve_or_answer"] = output.query
         state["tool"] = "retrieve_quotes"
     elif output.tool == "answer_from_context":
-        state["query_to_retrieve_or_answer"] = output.query
-        state["curr_context"] = output.curr_context
+        state["curr_context"] = state.get("aggregated_context", "")
         state["tool"] = "answer"
     else:
         raise ValueError(
@@ -468,15 +461,12 @@ def rewrite_queries(state: PlanExecute):
         The updated state with the rewritten questions for semantic and keyword search.
     """
     state["curr_state"] = "rewrite_question"
-    print("Re-write question")
-    pprint("--------------------")
+    print("="*20 + "Re-write question" + "="*20)
     rewrite_question_output = rewrite_question_chain.invoke(state["question"])
     rewritten_question = rewrite_question_output["rewritten_question"]
     keyword_question = rewrite_question_output["keyword_question"]
     print(f"rewrite_querry: {rewritten_question} AND {keyword_question}")
-    pprint("--------------------")
-    state["original_question"] = state["question"]
-    state["question"] = rewritten_question
+    state["rewrite_question"] = rewritten_question
     state["keyword_question"] = keyword_question
     return state
 
@@ -492,12 +482,10 @@ def anonymize_queries(state: PlanExecute):
         The updated state with the anonymized question and mapping.
     """
     state["curr_state"] = "anonymize_question"
-    print("Anonymizing question")
-    pprint("--------------------")
+    print("="*20 + "Anonymizing question" + "="*20)
     anonymized_question_output = anonymize_question_chain.invoke(state["question"])
     anonymized_question = anonymized_question_output["anonymized_question"]
     print(f"anonimized_querry: {anonymized_question}")
-    pprint("--------------------")
     mapping = anonymized_question_output["mapping"]
     state["anonymized_question"] = anonymized_question
     state["mapping"] = mapping
@@ -515,8 +503,7 @@ def deanonymize_queries(state: PlanExecute):
         The updated state with the de-anonymized plan.
     """
     state["curr_state"] = "de_anonymize_plan"
-    print("De-anonymizing plan")
-    pprint("--------------------")
+    print("="*20 + "De-anonymizing plan" + "="*20)
     deanonimzed_plan = de_anonymize_plan_chain.invoke(
         {"plan": state["plan"], "mapping": state["mapping"]}
     )
@@ -536,8 +523,7 @@ def plan_step(state: PlanExecute):
         The updated state with the plan.
     """
     state["curr_state"] = "planner"
-    print("Planning step")
-    pprint("--------------------")
+    print("="*20 + "Planning" + "="*20)
     plan = planner.invoke({"question": state["anonymized_question"]})
     state["plan"] = plan.steps
     print(f'plan: {state["plan"]}')
@@ -555,8 +541,7 @@ def break_down_plan_step(state: PlanExecute):
         The updated state with the refined plan.
     """
     state["curr_state"] = "break_down_plan"
-    print("Breaking down plan steps into retrievable or answerable tasks")
-    pprint("--------------------")
+    print("="*20 + "Breaking down plan steps into retrievable or answerable tasks" + "="*20)
     refined_plan = break_down_plan_chain.invoke(state["plan"])
     state["plan"] = refined_plan.steps
     return state
@@ -573,8 +558,7 @@ def replan_step(state: PlanExecute):
         The updated state with the plan.
     """
     state["curr_state"] = "replan"
-    print("Replanning step")
-    pprint("--------------------")
+    print("="*20 + "Replanning" + "="*20)
     inputs = {
         "question": state["question"],
         "plan": state["plan"],
@@ -598,19 +582,17 @@ def can_be_answered(state: PlanExecute):
     """
     state["curr_state"] = "can_be_answered_already"
     print("Checking if the ORIGINAL QUESTION can be answered already")
-    pprint("--------------------")
     question = state["question"]
     context = state["aggregated_context"]
+    print(f"CONTEXT LENGTH: {len(context)}")
+    print("="*50)
     inputs = {"question": question, "context": context}
     output = can_be_answered_already_chain.invoke(inputs)
     if output.can_be_answered:
-        print("The ORIGINAL QUESTION can be fully answered already.")
-        pprint("--------------------")
+        print("="*20 + "The ORIGINAL QUESTION can be fully answered already" + "="*20)
         print("the aggregated context is:")
         print(text_wrap(state["aggregated_context"]))
-        print("--------------------")
         return "can_be_answered_already"
     else:
-        print("The ORIGINAL QUESTION cannot be fully answered yet.")
-        pprint("--------------------")
+        print("="*20 + "The ORIGINAL QUESTION cannot be fully answered yet" + "="*20)
         return "cannot_be_answered_yet"

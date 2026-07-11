@@ -41,7 +41,7 @@ load_dotenv()
 # 1. Initialize LLMs and Embeddings
 azure_llm_key = os.getenv("azure_llm_key")
 llm = ChatOpenAI(
-    model="DeepSeek-V4-Pro",
+    model="DeepSeek-V4-Flash",
     base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
     api_key=azure_llm_key,
     max_tokens=2048,

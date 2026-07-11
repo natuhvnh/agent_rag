@@ -51,6 +51,8 @@ class QualitativeRetrievalGraphState(TypedDict):
 
     Attributes:
         question (str): The input question to be answered.
+        rewrite_question (str): The rewritten question used for vector (semantic) search.
+        keyword_question (str): The rewritten question used for keyword (BM25) search.
         context (str): The context retrieved from the source (e.g., book chunks, summaries, or quotes).
         relevant_context (str): The distilled or filtered context that is most relevant to the question.
         distill_attempts (int): Number of times the distill/ground loop has run.
@@ -59,6 +61,8 @@ class QualitativeRetrievalGraphState(TypedDict):
     """
 
     question: str
+    rewrite_question: str
+    keyword_question: str
     context: str
     relevant_context: str
     distill_attempts: int
@@ -94,7 +98,7 @@ class PlanExecute(TypedDict):
     Attributes:
         curr_state (str): The current state or status of the execution.
         question (str): The user question. Can be original question or rewritten question
-        original_question (str): The original question
+        rewrite_question (str): The rewritten question used for vector extraction
         keyword_question (str): The rewritten question used for keyword extraction
         anonymized_question (str): The anonymized version of the question (entities replaced with variables).
         query_to_retrieve_or_answer (str): The query to be used for retrieval or answering.
@@ -109,7 +113,7 @@ class PlanExecute(TypedDict):
 
     curr_state: str
     question: str
-    original_question: str
+    rewrite_question: str
     keyword_question: str
     anonymized_question: str
     query_to_retrieve_or_answer: str
@@ -150,17 +154,8 @@ class ActPossibleResults(BaseModel):
 class TaskHandlerOutput(BaseModel):
     """
     Output schema for the task handler.
-    - query: The query to be either retrieved from the vector store, or the question that should be answered from context.
-    - curr_context: The context to be based on in order to answer the query.
     - tool: The tool to be used; should be one of 'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer_from_context'.
     """
-
-    query: str = Field(
-        description="The query to be either retrieved from the vector store, or the question that should be answered from context."
-    )
-    curr_context: str = Field(
-        description="The context to be based on in order to answer the query."
-    )
     tool: Literal[
         "retrieve_chunks",
         "retrieve_summaries",
