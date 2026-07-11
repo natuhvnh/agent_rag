@@ -16,7 +16,7 @@ from models import (
     CanBeAnsweredAlready,
     Plan,
     ActPossibleResults,
-    RewriteQuestion
+    RewriteQuestion,
 )
 from prompts import (
     is_grounded_on_facts_prompt_template,
@@ -31,14 +31,17 @@ from prompts import (
     break_down_plan_prompt_template,
     planner_prompt_template,
     replanner_prompt_template,
-    rewrite_prompt_template
+    rewrite_prompt_template,
 )
+from helper_functions import tokenize
+import pickle
+import re
 
 load_dotenv()
 # 1. Initialize LLMs and Embeddings
 azure_llm_key = os.getenv("azure_llm_key")
 llm = ChatOpenAI(
-    model="DeepSeek-V4-Flash",
+    model="DeepSeek-V4-Pro",
     base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
     api_key=azure_llm_key,
     max_tokens=2048,
@@ -80,6 +83,10 @@ chapter_summaries_query_retriever = chapter_summaries_vector_store.as_retriever(
 book_quotes_query_retriever = book_quotes_vectorstore.as_retriever(
     search_kwargs={"k": 5}
 )
+with open("embedding/bm25.pkl", "rb") as f:
+    bm25_retriever = pickle.load(f)
+bm25_retriever.k = 5
+
 # 3. Initialize Chains
 # Create the LLM chain for fact-checking
 is_grounded_on_facts_prompt = PromptTemplate(

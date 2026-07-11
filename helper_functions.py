@@ -39,36 +39,37 @@ def num_tokens_from_string(string: str, encoding_name: str) -> int:
     return num_tokens
 
 
-def replace_t_with_space(list_of_documents):
+def replace_t_with_space(documents):
     """
     Replaces all tab characters ('\t') with spaces in the page content of each document.
 
     Args:
-        list_of_documents (list): A list of document objects, each with a 'page_content' attribute.
+        documents (list): A list of document objects, each with a 'page_content' attribute.
 
     Returns:
         list: The modified list of documents with tab characters replaced by spaces.
     """
-    for doc in list_of_documents:
+    for doc in documents:
         doc.page_content = doc.page_content.replace('\t', ' ')
-    return list_of_documents
+    return documents
 
 
-def replace_double_lines_with_one_line(text):
+def replace_double_lines_with_one_line(documents):
     """
     Replaces consecutive double newline characters ('\n\n') with a single newline character ('\n').
 
     Args:
-        text (str): The input text string.
+        documents (list): A list of document objects, each with a 'page_content' attribute.
 
     Returns:
-        str: The text string with double newlines replaced by single newlines.
+        list: The modified list of documents with double newlines replaced by single newlines.
     """
-    cleaned_text = re.sub(r'\n\n', '\n', text)
-    return cleaned_text
+    for doc in documents:
+        doc.page_content = re.sub(r'\n\n', '\n', doc.page_content)
+    return documents
 
 
-def escape_quotes(text):
+def escape_quotes(documents):
     """
     Escapes both single and double quotes in a string.
 
@@ -78,7 +79,9 @@ def escape_quotes(text):
     Returns:
         str: The string with single and double quotes escaped.
     """
-    return text.replace('"', '\\"').replace("'", "\\'")
+    for doc in documents:
+        doc.page_content = doc.page_content.replace('"', '\\"').replace("'", "\\'")
+    return documents
 
 
 def text_wrap(text, width=120):
@@ -99,7 +102,7 @@ def text_wrap(text, width=120):
 # PDF PROCESSING FUNCTIONS
 # =============================================================================
 
-def split_into_chapters(book_path):
+def split_into_chapters(documents):
     """
     Splits a PDF book into chapters based on chapter title patterns.
 
@@ -110,24 +113,20 @@ def split_into_chapters(book_path):
         list: A list of Document objects, each representing a chapter with its 
               text content and chapter number metadata.
     """
-    with open(book_path, 'rb') as pdf_file:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        documents = pdf_reader.pages
+    # Concatenate text from all pages
+    text = " ".join([doc.page_content for doc in documents])
 
-        # Concatenate text from all pages
-        text = " ".join([doc.extract_text() for doc in documents])
+    # Split text into chapters based on chapter title pattern
+    chapters = re.split(r'(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)', text)
 
-        # Split text into chapters based on chapter title pattern
-        chapters = re.split(r'(CHAPTER\s[A-Z]+(?:\s[A-Z]+)*)', text)
-
-        # Create Document objects with chapter metadata
-        chapter_docs = []
-        chapter_num = 1
-        for i in range(1, len(chapters), 2):
-            chapter_text = chapters[i] + chapters[i + 1]  # Combine title and content
-            doc = Document(page_content=chapter_text, metadata={"chapter": chapter_num})
-            chapter_docs.append(doc)
-            chapter_num += 1
+    # Create Document objects with chapter metadata
+    chapter_docs = []
+    chapter_num = 1
+    for i in range(1, len(chapters), 2):
+        chapter_text = chapters[i] + chapters[i + 1]  # Combine title and content
+        doc = Document(page_content=chapter_text, metadata={"chapter": chapter_num})
+        chapter_docs.append(doc)
+        chapter_num += 1
 
     return chapter_docs
 
@@ -257,6 +256,10 @@ def load_object(filename):
         obj = dill.load(file)
     print(f"Object has been loaded from '{filename}'.")
     return obj
+
+
+def tokenize(text: str):
+    return re.findall(r"\b\w+\b", text.lower())
 
 
 # =============================================================================

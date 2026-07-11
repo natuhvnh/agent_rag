@@ -1,5 +1,6 @@
 from pprint import pprint
 from models import PlanExecute
+from collections import defaultdict
 from dependencies import (
     keep_only_relevant_content_chain,
     question_answer_from_context_cot_chain,
@@ -9,15 +10,16 @@ from dependencies import (
     chapter_summaries_query_retriever,
     book_quotes_query_retriever,
     chunks_query_retriever,
+    bm25_retriever,
     break_down_plan_chain,
     anonymize_question_chain,
     planner,
     replanner,
     can_be_answered_already_chain,
     de_anonymize_plan_chain,
-    rewrite_question_chain
+    rewrite_question_chain,
 )
-from helper_functions import escape_quotes, text_wrap
+from helper_functions import text_wrap
 
 # Cap on how many times the distill/ground loop may run before falling back to the raw
 # retrieved context, so the loop can never spin indefinitely on a persistent "not grounded" verdict.
@@ -66,7 +68,6 @@ def keep_only_relevant_content(state):
     output = keep_only_relevant_content_chain.invoke(input_data)
     relevant_content = output.relevant_content
     relevant_content = "".join(relevant_content)
-    relevant_content = escape_quotes(relevant_content)
 
     return {
         "relevant_context": relevant_content,
@@ -215,13 +216,38 @@ def retrieve_chunks_context_per_question(state):
             - "context": Aggregated context string from relevant book chunks.
             - "question": The original question.
     """
+    top_k = 5
+    rrf_k = 60
     print("Retrieving relevant chunks...")
     question = state["question"]
-    # Retrieve relevant book chunks using the retriever
-    docs = chunks_query_retriever.invoke(question)
+
+    bm25_docs = bm25_retriever.invoke(question)
+    vector_docs = chunks_query_retriever.invoke(question)
+
+    scores = defaultdict(float)
+    unique_docs = {}
+
+    # BM25 ranking
+    for rank, doc in enumerate(bm25_docs):
+        key = doc.page_content
+
+        unique_docs[key] = doc
+        scores[key] += 1.0 / (rrf_k + rank + 1)
+
+    # Vector ranking
+    for rank, doc in enumerate(vector_docs):
+        key = doc.page_content
+
+        unique_docs[key] = doc
+        scores[key] += 1.0 / (rrf_k + rank + 1)
+
+    # Sort by RRF score
+    ranked_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+    # Return final documents
+    top_docs = [unique_docs[key] for key, _ in ranked_scores[:top_k]]
     # Concatenate the content of the retrieved documents
-    context = " ".join(doc.page_content for doc in docs)
-    context = escape_quotes(context)
+    context = " ".join(doc.page_content for doc in top_docs)
     return {"context": context, "question": question}
 
 
@@ -246,7 +272,6 @@ def retrieve_summaries_context_per_question(state):
         f"{doc.page_content} (Chapter {doc.metadata['chapter']})"
         for doc in docs_summaries
     )
-    context_summaries = escape_quotes(context_summaries)
     return {"context": context_summaries, "question": question}
 
 
@@ -268,8 +293,7 @@ def retrieve_book_quotes_context_per_question(state):
     docs_book_quotes = book_quotes_query_retriever.invoke(question)
     # Concatenate the content of the retrieved quotes
     book_quotes = " ".join(doc.page_content for doc in docs_book_quotes)
-    book_quotes_context = escape_quotes(book_quotes)
-    return {"context": book_quotes_context, "question": question}
+    return {"context": book_quotes, "question": question}
 
 
 def check_answer_grounded_on_context(state):

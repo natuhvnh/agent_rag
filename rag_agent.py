@@ -54,7 +54,7 @@ def execute_plan_and_print_steps(inputs, recursion_limit=45):
 #
 if __name__ == "__main__":
     initial_input = {
-        "question": "who is Harry Potter?",
+        "question": "What is Hogwarts?",
         "past_steps": [],
         "aggregated_context": "",
         "tool": "",
