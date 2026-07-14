@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Literal, TypedDict
+from typing import List, Dict, Literal, TypedDict, Annotated, Any
+from helper_functions import accumulate_or_reset
 
 
 class KeepRelevantContent(BaseModel):
@@ -109,6 +110,7 @@ class PlanExecute(TypedDict):
         aggregated_context (str): The accumulated context from previous steps.
         tool (str): The tool or method used for the current step (e.g., retrieval, answer).
         response (str): The response or output generated at this step.
+        node_timings (str): Per-turn wall-time records (memory_prep resets each turn via None)
     """
 
     curr_state: str
@@ -124,6 +126,7 @@ class PlanExecute(TypedDict):
     aggregated_context: str
     tool: str
     response: str
+    node_timings: Annotated[List[Dict[str, Any]], accumulate_or_reset]
 
 
 class Plan(BaseModel):
@@ -156,6 +159,7 @@ class TaskHandlerOutput(BaseModel):
     Output schema for the task handler.
     - tool: The tool to be used; should be one of 'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer_from_context'.
     """
+
     tool: Literal[
         "retrieve_chunks",
         "retrieve_summaries",
@@ -175,8 +179,12 @@ class RewriteQuestion(BaseModel):
       explanation (str): Explanation of the re-write process.
     """
 
-    rewritten_question: str = Field(description="The rewritten question for semantic search")
-    keyword_question: str = Field(description="The rewritten question for keyword search")
+    rewritten_question: str = Field(
+        description="The rewritten question for semantic search"
+    )
+    keyword_question: str = Field(
+        description="The rewritten question for keyword search"
+    )
     explanation: str = Field(description="Explanation of the re-write process")
 
 

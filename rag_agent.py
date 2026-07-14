@@ -1,10 +1,8 @@
 from dotenv import load_dotenv
 import os
-from IPython.display import display, Image
+import time
 import langgraph
-from helper_functions import (
-    text_wrap,
-)
+from helper_functions import text_wrap, timing_summary
 from graphs import plan_and_execute_app
 
 load_dotenv()
@@ -35,19 +33,25 @@ def execute_plan_and_print_steps(inputs, recursion_limit=45):
             response (str): The final answer or message if not found.
             final_state (dict): The final state after execution.
     """
+    _run_start = time.perf_counter()
+    final_state = None
     config = {"recursion_limit": recursion_limit}
     try:
-        # Stream the outputs from the plan_and_execute_app workflow
-        for plan_output in plan_and_execute_app.stream(inputs, config=config):
-            for _, agent_state_value in plan_output.items():
-                pass  # agent_state_value holds the latest state after each node execution
-                print(f" curr step: {agent_state_value}")
-        response = agent_state_value["response"]
+        for stream_mode, chunk in plan_and_execute_app.stream(
+            inputs, config=config, stream_mode=["updates", "values"]
+        ):
+            if stream_mode == "updates":
+                for _, agent_state_value in chunk.items():
+                    print(f" curr step: {agent_state_value}")
+            else:  # "values"
+                final_state = chunk
+        response = final_state["response"]
     except langgraph.errors.GraphRecursionError:
         response = "The answer wasn't found in the data."
-    # Save the final state for further inspection or evaluation
-    final_state = agent_state_value
     print(text_wrap(f" the final answer is: {response}"))
+    _total_runtime = time.perf_counter() - _run_start
+    if final_state is not None:
+        timing_summary(final_state, _total_runtime)
     return response, final_state
 
 

@@ -26,7 +26,7 @@ from nodes import (
     can_be_answered,
     rewrite_queries
 )
-
+from helper_functions import timed_node
 
 #
 def build_chunks_retrieval_workflow():
@@ -120,25 +120,25 @@ def build_qualitative_answer_workflow():
 #
 def build_agent_workflow():
     agent_workflow = StateGraph(PlanExecute)
-    agent_workflow.add_node("anonymize_question", anonymize_queries)
-    agent_workflow.add_node("planner", plan_step)
-    agent_workflow.add_node("de_anonymize_plan", deanonymize_queries)
-    agent_workflow.add_node("rewrite_question", rewrite_queries)
-    agent_workflow.add_node("break_down_plan", break_down_plan_step)
-    agent_workflow.add_node("task_handler", run_task_handler_chain)
+    agent_workflow.add_node("anonymize_question", timed_node("anonymize_question", anonymize_queries))
+    agent_workflow.add_node("planner", timed_node("planner", plan_step))
+    agent_workflow.add_node("de_anonymize_plan", timed_node("de_anonymize_plan", deanonymize_queries))
+    agent_workflow.add_node("rewrite_question", timed_node("rewrite_question", rewrite_queries))
+    agent_workflow.add_node("break_down_plan", timed_node("break_down_plan", break_down_plan_step))
+    agent_workflow.add_node("task_handler", timed_node("task_handler", run_task_handler_chain))
     agent_workflow.add_node(
-        "retrieve_chunks", run_qualitative_chunks_retrieval_workflow
+        "retrieve_chunks", timed_node("retrieve_chunks", run_qualitative_chunks_retrieval_workflow)
     )
     agent_workflow.add_node(
-        "retrieve_summaries", run_qualitative_summaries_retrieval_workflow
+        "retrieve_summaries", timed_node("retrieve_summaries", run_qualitative_summaries_retrieval_workflow)
     )
     agent_workflow.add_node(
-        "retrieve_book_quotes", run_qualitative_book_quotes_retrieval_workflow
+        "retrieve_book_quotes", timed_node("retrieve_book_quotes", run_qualitative_book_quotes_retrieval_workflow)
     )
-    agent_workflow.add_node("answer", run_qualitative_answer_workflow)
-    agent_workflow.add_node("replan", replan_step)
+    agent_workflow.add_node("answer", timed_node("answer", run_qualitative_answer_workflow))
+    agent_workflow.add_node("replan", timed_node("replan", replan_step))
     agent_workflow.add_node(
-        "get_final_answer", run_qualitative_answer_workflow_for_final_answer
+        "get_final_answer", timed_node("get_final_answer", run_qualitative_answer_workflow_for_final_answer)
     )
     agent_workflow.set_entry_point("anonymize_question")
     agent_workflow.add_edge("anonymize_question", "planner")

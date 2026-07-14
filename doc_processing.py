@@ -9,8 +9,9 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_classic.chains.summarize import load_summarize_chain
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from langchain_azure_cosmosdb import AzureCosmosDBNoSqlVectorSearch
 from langchain_core.documents import Document
+from azure.cosmos import CosmosClient, PartitionKey
 from dotenv import load_dotenv
 from time import monotonic
 import tiktoken
@@ -31,7 +32,7 @@ from helper_functions import (
     escape_quotes,
     text_wrap,
     extract_book_quotes_as_documents,
-    tokenize
+    tokenize,
 )
 
 # --- Load environment variables (e.g., API keys) ---
@@ -119,18 +120,79 @@ def create_chapter_summary(chapter, llm):
     return chapter_summary
 
 
-def encode_doc(documents, embeddings, chunk_size=1000, chunk_overlap=200):
+def create_vectorstore(documents, embeddings, database_name, container_name):
+    # Create Cosmos client
+    KEY = os.getenv("cosmos_key")
+    ENDPOINT = os.getenv("cosmos_url")
+    cosmos_client = CosmosClient(ENDPOINT, credential=KEY)
+    # Vector policy
+    vector_embedding_policy = {
+        "vectorEmbeddings": [
+            {
+                "path": "/vector_embedding",
+                "dataType": "float32",
+                "distanceFunction": "cosine",
+                "dimensions": 1536,  # Match your embedding model
+            }
+        ]
+    }
+    # Indexing policy
+    indexing_policy = {
+        "indexingMode": "consistent",
+        "automatic": True,
+        "includedPaths": [{"path": "/*"}],
+        "excludedPaths": [{"path": '/"_etag"/?'}],
+        "vectorIndexes": [
+            {
+                "path": "/vector_embedding",
+                "type": "diskANN",
+            }
+        ],
+    }
+    # Create vector store and upload documents
+    vector_search_fields = {"text_field": "text", "embedding_field": "vector_embedding"}
+    cosmos_container_properties = {"partition_key": PartitionKey(path="/id")}
+    vectorstore = AzureCosmosDBNoSqlVectorSearch.from_documents(
+        documents=documents,
+        embedding=embeddings,
+        cosmos_client=cosmos_client,
+        database_name=database_name,
+        container_name=container_name,
+        vector_embedding_policy=vector_embedding_policy,
+        indexing_policy=indexing_policy,
+        cosmos_container_properties=cosmos_container_properties,
+        cosmos_database_properties={},
+        vector_search_fields=vector_search_fields
+    )
+    return vectorstore
+
+
+def encode_chunk(
+    documents,
+    embeddings,
+    database_name,
+    container_name,
+    chunk_size=1000,
+    chunk_overlap=200,
+):
+    print("="*20 + "ENCODING CHUNK" + "="*20)
+    # Split documents
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=len
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        length_function=len,
     )
     texts = text_splitter.split_documents(documents)
     cleaned_texts = replace_t_with_space(texts)
-    vectorstore = FAISS.from_documents(cleaned_texts, embeddings)
-    vectorstore.save_local("embedding/chunks_vector_store")
-    return
+    vectorstore = create_vectorstore(cleaned_texts, embeddings, database_name, container_name)
+    #
+    # vectorstore = FAISS.from_documents(cleaned_texts, embeddings)
+    # vectorstore.save_local("embedding/chunks_vector_store")
+    return vectorstore
 
 
-def encode_doc_summary(chapters, embeddings):
+def encode_doc_summary(chapters, embeddings, database_name, container_name):
+    print("="*20 + "ENCODING DOCUMENT SUMMARY" + "="*20)
     chapter_summaries = []
     # Iterate over each chapter in the chapters list
     for chapter in chapters:
@@ -141,18 +203,24 @@ def encode_doc_summary(chapters, embeddings):
     with open("processed_docs/hp/chapter_summary.json", "w", encoding="utf-8") as f:
         json.dump(docs_json, f, ensure_ascii=False, indent=4)
     #
-    chapter_summaries_vectorstore = FAISS.from_documents(chapter_summaries, embeddings)
-    chapter_summaries_vectorstore.save_local("embedding/chapter_summaries_vector_store")
-    return
+    # vectorstore = FAISS.from_documents(chapter_summaries, embeddings)
+    # vectorstore.save_local("embedding/chapter_summaries_vector_store")
+    #
+    vectorstore = create_vectorstore(chapter_summaries, embeddings, database_name, container_name)
+    return vectorstore
 
 
-def encode_quote(book_quotes_list, embeddings):
-    quotes_vectorstore = FAISS.from_documents(book_quotes_list, embeddings)
-    quotes_vectorstore.save_local("embedding/book_quotes_vectorstore")
-    return
+def encode_quote(book_quotes_list, embeddings, database_name, container_name):
+    print("="*20 + "ENCODING DOCUMENT QUOTE" + "="*20)
+    # vectorstore = FAISS.from_documents(book_quotes_list, embeddings)
+    # vectorstore.save_local("embedding/book_quotes_vectorstore")
+    #
+    vectorstore = create_vectorstore(book_quotes_list, embeddings, database_name, container_name)
+    return vectorstore
 
 
 def encode_bm25(documents):
+    print("="*20 + "ENCODING WORDS" + "="*20)
     # doc_content = [doc.page_content for doc in documents]
     # tokenized_docs = [doc.lower().split() for doc in doc_content]
 
@@ -173,9 +241,9 @@ if __name__ == "__main__":
         doc_path, process_quote, process_chapter
     )
     llm, embeddings = get_tools()
-    # encode_doc(document_cleaned, embeddings, chunk_size=1000, chunk_overlap=200)
+    chunk_vectorstore = encode_chunk(document_cleaned, embeddings, "rag-agent", "chunk-embedding")
     encode_bm25(document_cleaned)
-    # if process_chapter:
-    #     encode_doc_summary(chapters, embeddings)
-    # if process_quote:
-    #     encode_quote(book_quotes_list, embeddings)
+    if process_chapter:
+        chapter_vectorstore = encode_doc_summary(chapters, embeddings, "rag-agent", "chapter-embedding")
+    if process_quote:
+        quote_vectorstore = encode_quote(book_quotes_list, embeddings, "rag-agent", "quote-embedding")

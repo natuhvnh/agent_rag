@@ -107,15 +107,20 @@ The result of the final step should be the final answer. Make sure that each ste
 """
 
 break_down_plan_prompt_template = """
-You receive a plan {plan} which contains a series of steps to follow in order to answer a query. 
-You need to go through the plan and refine it according to these rules:
-1. Every step must be executable by one of the following:
-    i. Retrieving relevant information from a vector store of book chunks
-    ii. Retrieving relevant information from a vector store of chapter summaries
-    iii. Retrieving relevant information from a vector store of book quotes
-    iv. Answering a question from a given context.
-2. Every step should contain all the information needed to execute it.
-Output the refined plan.
+You receive a plan: {plan}.
+Your task is to refine the plan into a sequence of executable steps.
+Rules:
+1. Preserve the execution order from the original plan whenever it is explicit or can be reasonably inferred.
+2. If the original plan does not specify a clear execution order, use the following priority (highest to lowest):
+   i. Retrieve relevant information from the vector store of book chunks.
+   ii. Retrieve relevant information from the vector store of chapter summaries.
+   iii. Retrieve relevant information from the vector store of book quotes.
+   iv. Answer a question using the provided context.
+3. Every refined step must be executable by exactly one of the capabilities above.
+4. Always select the highest-priority capability that can accomplish the step. Only use a lower-priority capability when a higher-priority one is clearly unsuitable.
+5. Each step must contain all information required for execution. Rewrite ambiguous references (for example, "it", "this", or "the previous result") into explicit instructions.
+6. Split compound steps into multiple executable steps when necessary, but do not introduce unnecessary steps or change the intent of the original plan.
+Output only the refined plan.
 """
 
 replanner_prompt_template = """

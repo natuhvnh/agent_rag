@@ -8,14 +8,17 @@ PDF handling, similarity analysis, and metric evaluation for RAG applications.
 # Standard library imports
 import re
 import textwrap
-
-# Third-party imports
 import tiktoken
+import inspect
+import functools
+import time
 import PyPDF2
 import pylcs
 import pandas as pd
 import dill
+from typing import Optional
 from langchain_core.documents import Document
+from langgraph.types import Command
 
 
 
@@ -267,3 +270,73 @@ def tokenize(text: str):
 # =============================================================================
 # save_object(plan_and_execute_app, 'plan_and_execute_app.pkl')
 # plan_and_execute_app = load_object('plan_and_execute_app.pkl')
+
+
+def timed_node(name: str, fn):
+    """Wraps a node function to record its wall-clock execution time into state.
+    Updated to handle both sync and async nodes dynamically, and accept varying arguments."""
+
+    if inspect.iscoroutinefunction(fn):
+        @functools.wraps(fn)
+        async def async_wrapper(*args, **kwargs): 
+            start = time.perf_counter()
+            result = await fn(*args, **kwargs) 
+            elapsed = time.perf_counter() - start
+            print(f"[timing] {name}: {elapsed:.2f}s")
+            
+            # Note: We assume the function returns a dict or Command.
+            if isinstance(result, Command):
+                if result.update is None:
+                    result.update = {}
+                result.update["node_timings"] = [{"node": name, "seconds": elapsed}]
+            elif isinstance(result, dict):
+                # Handle standard dict returns (like memory_prep_node)
+                result["node_timings"] = [{"node": name, "seconds": elapsed}]
+                
+            return result
+        return async_wrapper
+    else:
+        @functools.wraps(fn)
+        def sync_wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = fn(*args, **kwargs) 
+            elapsed = time.perf_counter() - start
+            print(f"[timing] {name}: {elapsed:.2f}s")
+            
+            if isinstance(result, Command):
+                if result.update is None:
+                    result.update = {}
+                result.update["node_timings"] = [{"node": name, "seconds": elapsed}]
+            elif isinstance(result, dict):
+                 result["node_timings"] = [{"node": name, "seconds": elapsed}]
+                 
+            return result
+        return sync_wrapper
+    
+
+def accumulate_or_reset(current: Optional[list], update: Optional[list]) -> list:
+    """Append `update` to `current`, but reset to a fresh list at the start of each turn.
+
+    Reset triggers on EITHER:
+    - an explicit None write  — memory_prep uses this for token_usage, OR
+    - a 'memory_prep' record  — for node_timings: timed_node wraps memory_prep_node and
+      overwrites its None with a timing dict, so we detect the turn-start node instead.
+
+    This keeps both metric channels strictly per-turn even on a long-running conversation
+    thread where the checkpointer would otherwise accumulate across turns.
+    """
+    if update is None:
+        return []
+    if any(isinstance(r, dict) and r.get("node") == "memory_prep" for r in update):
+        return list(update)   # new turn → discard prior turn's records, start fresh
+    return (current or []) + list(update)
+
+
+def timing_summary(final_state, total_seconds=None):
+    timings = final_state.get("node_timings") or []
+    print("\n--- Node Execution Times ---")
+    for rec in timings:
+        print(f"{rec['node']}: {rec['seconds']:.2f}s")
+    print(f"Sum of node times: {sum(r['seconds'] for r in timings):.2f}s")
+    if total_seconds is not None:
+        print(f"Total run time:    {total_seconds:.2f}s")
