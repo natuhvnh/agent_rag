@@ -20,9 +20,6 @@ import json
 import os
 import re
 
-# --- Datasets and Typing ---
-from datasets import Dataset
-
 # --- Helper Functions ---
 from helper_functions import (
     num_tokens_from_string,
@@ -34,6 +31,7 @@ from helper_functions import (
     extract_book_quotes_as_documents,
     tokenize,
 )
+from vecstore import get_vector_store
 
 # --- Load environment variables (e.g., API keys) ---
 load_dotenv()
@@ -162,7 +160,7 @@ def create_vectorstore(documents, embeddings, database_name, container_name):
         indexing_policy=indexing_policy,
         cosmos_container_properties=cosmos_container_properties,
         cosmos_database_properties={},
-        vector_search_fields=vector_search_fields
+        vector_search_fields=vector_search_fields,
     )
     return vectorstore
 
@@ -175,7 +173,7 @@ def encode_chunk(
     chunk_size=1000,
     chunk_overlap=200,
 ):
-    print("="*20 + "ENCODING CHUNK" + "="*20)
+    print("=" * 20 + "ENCODING CHUNK" + "=" * 20)
     # Split documents
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -184,7 +182,8 @@ def encode_chunk(
     )
     texts = text_splitter.split_documents(documents)
     cleaned_texts = replace_t_with_space(texts)
-    vectorstore = create_vectorstore(cleaned_texts, embeddings, database_name, container_name)
+    vectorstore = get_vector_store(embeddings, database_name, container_name)
+    vectorstore.add_documents(cleaned_texts)
     #
     # vectorstore = FAISS.from_documents(cleaned_texts, embeddings)
     # vectorstore.save_local("embedding/chunks_vector_store")
@@ -192,7 +191,7 @@ def encode_chunk(
 
 
 def encode_doc_summary(chapters, embeddings, database_name, container_name):
-    print("="*20 + "ENCODING DOCUMENT SUMMARY" + "="*20)
+    print("=" * 20 + "ENCODING DOCUMENT SUMMARY" + "=" * 20)
     chapter_summaries = []
     # Iterate over each chapter in the chapters list
     for chapter in chapters:
@@ -206,21 +205,23 @@ def encode_doc_summary(chapters, embeddings, database_name, container_name):
     # vectorstore = FAISS.from_documents(chapter_summaries, embeddings)
     # vectorstore.save_local("embedding/chapter_summaries_vector_store")
     #
-    vectorstore = create_vectorstore(chapter_summaries, embeddings, database_name, container_name)
+    vectorstore = get_vector_store(embeddings, database_name, container_name)
+    vectorstore.add_documents(chapter_summaries)
     return vectorstore
 
 
 def encode_quote(book_quotes_list, embeddings, database_name, container_name):
-    print("="*20 + "ENCODING DOCUMENT QUOTE" + "="*20)
+    print("=" * 20 + "ENCODING DOCUMENT QUOTE" + "=" * 20)
     # vectorstore = FAISS.from_documents(book_quotes_list, embeddings)
     # vectorstore.save_local("embedding/book_quotes_vectorstore")
     #
-    vectorstore = create_vectorstore(book_quotes_list, embeddings, database_name, container_name)
+    vectorstore = get_vector_store(embeddings, database_name, container_name)
+    vectorstore.add_documents(book_quotes_list)
     return vectorstore
 
 
 def encode_bm25(documents):
-    print("="*20 + "ENCODING WORDS" + "="*20)
+    print("=" * 20 + "ENCODING WORDS" + "=" * 20)
     # doc_content = [doc.page_content for doc in documents]
     # tokenized_docs = [doc.lower().split() for doc in doc_content]
 
@@ -241,9 +242,15 @@ if __name__ == "__main__":
         doc_path, process_quote, process_chapter
     )
     llm, embeddings = get_tools()
-    chunk_vectorstore = encode_chunk(document_cleaned, embeddings, "rag-agent", "chunk-embedding")
+    chunk_vectorstore = encode_chunk(
+        document_cleaned, embeddings, "rag-agent", "chunk-embedding"
+    )
     encode_bm25(document_cleaned)
     if process_chapter:
-        chapter_vectorstore = encode_doc_summary(chapters, embeddings, "rag-agent", "chapter-embedding")
+        chapter_vectorstore = encode_doc_summary(
+            chapters, embeddings, "rag-agent", "chapter-embedding"
+        )
     if process_quote:
-        quote_vectorstore = encode_quote(book_quotes_list, embeddings, "rag-agent", "quote-embedding")
+        quote_vectorstore = encode_quote(
+            book_quotes_list, embeddings, "rag-agent", "quote-embedding"
+        )

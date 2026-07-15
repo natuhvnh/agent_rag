@@ -4,6 +4,8 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_azure_cosmosdb import AzureCosmosDBNoSqlVectorSearch
+from azure.cosmos import CosmosClient
 from models import (
     KeepRelevantContent,
     IsDistilledContentGroundedOnContent,
@@ -33,7 +35,7 @@ from prompts import (
     replanner_prompt_template,
     rewrite_prompt_template,
 )
-from helper_functions import tokenize
+from vecstore import get_vector_store
 import pickle
 import re
 
@@ -60,27 +62,59 @@ embeddings = OpenAIEmbeddings(
     timeout=30,
     max_retries=2,
 )
+
+
 # 2. Initialize Retrievers
-chunks_vector_store = FAISS.load_local(
-    "embedding/chunks_vector_store",
-    embeddings,
-    allow_dangerous_deserialization=True,
+def get_cosmos_retriever(embeddings, database_name, container_name, k=5):
+
+    KEY = os.getenv("cosmos_key")
+    ENDPOINT = os.getenv("cosmos_url")
+    cosmos_client = CosmosClient(ENDPOINT, credential=KEY)
+    vectorstore = AzureCosmosDBNoSqlVectorSearch(
+        cosmos_client=cosmos_client,
+        embedding=embeddings,
+        database_name=database_name,
+        container_name=container_name,
+    )
+
+    vector_retriever = vectorstore.as_retriever(search_kwargs={"k": k})
+    return vector_retriever
+
+
+# chunks_vector_store = FAISS.load_local(
+#     "embedding/chunks_vector_store",
+#     embeddings,
+#     allow_dangerous_deserialization=True,
+# )
+# chunks_query_retriever = chunks_vector_store.as_retriever(search_kwargs={"k": 5})
+# chapter_summaries_vector_store = FAISS.load_local(
+#     "embedding/chapter_summaries_vector_store",
+#     embeddings,
+#     allow_dangerous_deserialization=True,
+# )
+# chapter_summaries_query_retriever = chapter_summaries_vector_store.as_retriever(
+#     search_kwargs={"k": 2}
+# )
+# book_quotes_vectorstore = FAISS.load_local(
+#     "embedding/book_quotes_vectorstore",
+#     embeddings,
+#     allow_dangerous_deserialization=True,
+# )
+# book_quotes_query_retriever = book_quotes_vectorstore.as_retriever(
+#     search_kwargs={"k": 5}
+# )
+chunks_query_retriever = get_vector_store(embeddings, "rag-agent", "chunk-embedding")
+chunks_query_retriever = chunks_query_retriever.as_retriever(search_kwargs={"k": 5})
+chapter_summaries_query_retriever = get_vector_store(
+    embeddings, "rag-agent", "chapter-embedding"
 )
-chapter_summaries_vector_store = FAISS.load_local(
-    "embedding/chapter_summaries_vector_store",
-    embeddings,
-    allow_dangerous_deserialization=True,
-)
-book_quotes_vectorstore = FAISS.load_local(
-    "embedding/book_quotes_vectorstore",
-    embeddings,
-    allow_dangerous_deserialization=True,
-)
-chunks_query_retriever = chunks_vector_store.as_retriever(search_kwargs={"k": 5})
-chapter_summaries_query_retriever = chapter_summaries_vector_store.as_retriever(
+chapter_summaries_query_retriever = chapter_summaries_query_retriever.as_retriever(
     search_kwargs={"k": 2}
 )
-book_quotes_query_retriever = book_quotes_vectorstore.as_retriever(
+book_quotes_query_retriever = get_vector_store(
+    embeddings, "rag-agent", "quote-embedding"
+)
+book_quotes_query_retriever = book_quotes_query_retriever.as_retriever(
     search_kwargs={"k": 5}
 )
 with open("embedding/bm25.pkl", "rb") as f:
