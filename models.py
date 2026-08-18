@@ -110,7 +110,9 @@ class PlanExecute(TypedDict):
         aggregated_context (str): The accumulated context from previous steps.
         tool (str): The tool or method used for the current step (e.g., retrieval, answer).
         response (str): The response or output generated at this step.
-        node_timings (str): Per-turn wall-time records (memory_prep resets each turn via None)
+        node_timings (str): Per-turn wall-time records (memory_prep resets each turn via None).
+        node_tokens (str): Per-turn per-node token usage records (input/output).
+        can_be_answered_flag (bool): Whether the ORIGINAL question is answerable yet, computed in replan_step.
     """
 
     curr_state: str
@@ -127,6 +129,8 @@ class PlanExecute(TypedDict):
     tool: str
     response: str
     node_timings: Annotated[List[Dict[str, Any]], accumulate_or_reset]
+    node_tokens: Annotated[List[Dict[str, Any]], accumulate_or_reset]
+    can_be_answered_flag: bool
 
 
 class Plan(BaseModel):

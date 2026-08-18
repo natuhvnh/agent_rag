@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 import time
 import langgraph
-from helper_functions import text_wrap, timing_summary
+from helper_functions import text_wrap, timing_summary, token_summary
 from graphs import plan_and_execute_app
 
 load_dotenv()
@@ -52,6 +52,7 @@ def execute_plan_and_print_steps(inputs, recursion_limit=45):
     _total_runtime = time.perf_counter() - _run_start
     if final_state is not None:
         timing_summary(final_state, _total_runtime)
+        token_summary(final_state)
     return response, final_state
 
 
