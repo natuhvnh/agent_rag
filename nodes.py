@@ -568,6 +568,13 @@ def replan_step(state: PlanExecute):
     """
     state["curr_state"] = "replan"
     print("=" * 20 + "Replanning" + "=" * 20)
+    answerable = can_be_answered_already_chain.invoke(
+        {"question": state["question"], "context": state["aggregated_context"]}
+    )
+    state["can_be_answered_flag"] = answerable.can_be_answered
+    if state["can_be_answered_flag"]:
+        return state
+
     inputs = {
         "question": state["question"],
         "plan": state["plan"],
@@ -576,10 +583,6 @@ def replan_step(state: PlanExecute):
     }
     output = replanner.invoke(inputs)
     state["plan"] = output["plan"]["steps"]
-    answerable = can_be_answered_already_chain.invoke(
-        {"question": state["question"], "context": state["aggregated_context"]}
-    )
-    state["can_be_answered_flag"] = answerable.can_be_answered
     return state
 
 
