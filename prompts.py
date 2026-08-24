@@ -66,12 +66,16 @@ There are no details about Harry's interests, hobbies, or the person who gifted 
 Without any additional context about Harry's background or the gift-giver's motivations, there is no way to determine the reason he received a broomstick as a birthday present.
 
 For the question below, provide your answer by first showing your step-by-step reasoning process, breaking down the problem into a chain of thought before arriving at the final answer,
- just like in the previous examples.
+just like in the previous examples.
 {feedback}
 Context
 {context}
 Question
 {question}
+Output format:
+- Do not use Markdown formatting symbols like bolding (**text**) or headers (#). 
+- Format all responses as plain text. 
+- Always place each list item or point on a new line with double line breaks (\n\n) between items so it renders clearly.
 """
 
 is_relevant_content_prompt_template = """
