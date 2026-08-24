@@ -59,7 +59,8 @@ def execute_plan_and_print_steps(inputs, recursion_limit=45):
 #
 if __name__ == "__main__":
     initial_input = {
-        "question": "What is Hogwarts?",
+        # "question": "What is Hogwarts?",
+        "question": "Search the web and give me the answer for question How Event Order API (POS) works ?",
         "past_steps": [],
         "aggregated_context": "",
         "tool": "",

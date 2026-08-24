@@ -6,6 +6,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_azure_cosmosdb import AzureCosmosDBNoSqlVectorSearch
 from azure.cosmos import CosmosClient
+from langchain_tavily import TavilySearch
+from langchain_tavily.tavily_search import TavilySearchAPIWrapper
 from models import (
     KeepRelevantContent,
     IsDistilledContentGroundedOnContent,
@@ -52,7 +54,7 @@ azure_llm_key = os.getenv("azure_llm_key")
 #     max_retries=2,
 # )
 llm = ChatOpenAI(
-        model="grok-4.3", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash
+        model="DeepSeek-V4-Flash-0731", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash-0731
         base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
         api_key=azure_llm_key,
         max_tokens=2048,
@@ -133,6 +135,12 @@ book_quotes_query_retriever = book_quotes_query_retriever.as_retriever(
 with open("embedding/bm25.pkl", "rb") as f:
     bm25_retriever = pickle.load(f)
 bm25_retriever.k = 5
+
+web_search_tool = TavilySearch(
+    max_results=5,
+    include_domains=["3t-event.com"],
+    api_wrapper=TavilySearchAPIWrapper(tavily_api_key=os.getenv("tavily_key")),
+)
 
 # 3. Initialize Chains
 # Create the LLM chain for fact-checking

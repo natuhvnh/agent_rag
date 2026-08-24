@@ -13,6 +13,7 @@ from nodes import (
     route_after_grounding,
     retrieve_summaries_context_per_question,
     retrieve_book_quotes_context_per_question,
+    web_search_context_per_question,
     answer_question_from_context,
     check_answer_grounded_on_context,
     route_after_answer_grounding,
@@ -103,6 +104,31 @@ def build_qualitative_book_quotes_retrieval_workflow():
 
 
 #
+def build_web_search_workflow():
+    workflow = StateGraph(QualitativeRetrievalGraphState)
+    workflow.add_node(
+        "web_search_context_per_question",
+        web_search_context_per_question,
+    )
+    workflow.add_node("keep_only_relevant_content", keep_only_relevant_content)
+    workflow.add_node("check_distilled_grounding", check_distilled_content_grounded)
+    workflow.set_entry_point("web_search_context_per_question")
+    workflow.add_edge(
+        "web_search_context_per_question", "keep_only_relevant_content"
+    )
+    workflow.add_edge("keep_only_relevant_content", "check_distilled_grounding")
+    workflow.add_conditional_edges(
+        "check_distilled_grounding",
+        route_after_grounding,
+        {
+            "grounded on the original context": END,
+            "not grounded on the original context": "keep_only_relevant_content",
+        },
+    )
+    return workflow.compile()
+
+
+#
 def build_qualitative_answer_workflow():
     workflow = StateGraph(QualitativeAnswerGraphState)
     workflow.add_node("answer_question_from_context", answer_question_from_context)
@@ -135,6 +161,9 @@ def build_agent_workflow():
     agent_workflow.add_node(
         "retrieve_book_quotes", timed_node("retrieve_book_quotes", run_qualitative_book_quotes_retrieval_workflow)
     )
+    agent_workflow.add_node(
+        "web_search", timed_node("web_search", run_web_search_workflow)
+    )
     agent_workflow.add_node("answer", timed_node("answer", run_qualitative_answer_workflow))
     agent_workflow.add_node("replan", timed_node("replan", replan_step))
     agent_workflow.add_node(
@@ -153,12 +182,14 @@ def build_agent_workflow():
             "chosen_tool_is_retrieve_chunks": "retrieve_chunks",
             "chosen_tool_is_retrieve_summaries": "retrieve_summaries",
             "chosen_tool_is_retrieve_quotes": "retrieve_book_quotes",
+            "chosen_tool_is_web_search": "web_search",
             "chosen_tool_is_answer": "answer",
         },
     )
     agent_workflow.add_edge("retrieve_chunks", "replan")
     agent_workflow.add_edge("retrieve_summaries", "replan")
     agent_workflow.add_edge("retrieve_book_quotes", "replan")
+    agent_workflow.add_edge("web_search", "replan")
     agent_workflow.add_edge("answer", "replan")
     agent_workflow.add_conditional_edges(
         "replan",
@@ -257,6 +288,37 @@ def run_qualitative_book_quotes_retrieval_workflow(state, config: RunnableConfig
     return state
 
 
+def run_web_search_workflow(state, config: RunnableConfig):
+    """
+    Run the web search workflow.
+
+    Args:
+        state: The current state of the plan execution.
+        config: The run's config; only its recursion_limit is reused for this sub-graph.
+
+    Returns:
+        The state with the updated aggregated context, labeled with a web search marker
+        and the source URLs.
+    """
+    state["curr_state"] = "web_search"
+    print("Running the web search workflow...")
+    inputs = {"rewrite_question": state["rewrite_question"],
+              "keyword_question": state["keyword_question"]}
+    sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
+    sources = []
+    for output in web_search_workflow_app.stream(inputs, config=sub_config):
+        for _, value in output.items():
+            if value.get("sources"):
+                sources = value["sources"]
+        pprint("--------------------")
+    if not state.get("aggregated_context"):
+        state["aggregated_context"] = ""
+    state["aggregated_context"] += "\n[web search results]\n" + value["relevant_context"]
+    if sources:
+        state["aggregated_context"] += "\n(sources: " + ", ".join(sources) + ")\n"
+    return state
+
+
 def run_qualitative_answer_workflow(state, config: RunnableConfig):
     """
     Run the qualitative answer workflow.
@@ -317,5 +379,6 @@ qualitative_summaries_retrieval_workflow_app = (
 qualitative_book_quotes_retrieval_workflow_app = (
     build_qualitative_book_quotes_retrieval_workflow()
 )
+web_search_workflow_app = build_web_search_workflow()
 qualitative_answer_workflow_app = build_qualitative_answer_workflow()
 plan_and_execute_app = build_agent_workflow()

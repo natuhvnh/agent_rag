@@ -11,6 +11,7 @@ from dependencies import (
     book_quotes_query_retriever,
     chunks_query_retriever,
     bm25_retriever,
+    web_search_tool,
     break_down_plan_chain,
     anonymize_question_chain,
     planner,
@@ -299,6 +300,28 @@ def retrieve_book_quotes_context_per_question(state):
     return {"context": book_quotes, "question": question}
 
 
+def web_search_context_per_question(state):
+    """
+    Retrieves relevant context for a given question via a Tavily web search.
+
+    Args:
+        state (dict): A dictionary containing the question to answer, with key "rewrite_question".
+
+    Returns:
+        dict: A dictionary with keys:
+            - "context": Aggregated context string from the web search results.
+            - "question": The original question.
+            - "sources": List of source URLs for the web search results.
+    """
+    question = state["rewrite_question"]
+    print("Searching the web...")
+    results = web_search_tool.invoke({"query": question})
+    docs = results.get("results", [])
+    context = "\n\n".join(f"{d.get('title', '')}: {d.get('content', '')}" for d in docs)
+    sources = [d.get("url", "") for d in docs if d.get("url")]
+    return {"context": context, "question": question, "sources": sources}
+
+
 def check_answer_grounded_on_context(state):
     """
     Checks if the answer to the question is grounded in the provided context (i.e., not a
@@ -414,6 +437,8 @@ def run_task_handler_chain(state: PlanExecute):
         state["tool"] = "retrieve_summaries"
     elif output.tool == "retrieve_quotes":
         state["tool"] = "retrieve_quotes"
+    elif output.tool == "web_search":
+        state["tool"] = "web_search"
     elif output.tool == "answer_from_context":
         state["query_to_retrieve_or_answer"] = curr_task
         state["curr_context"] = state.get("aggregated_context", "")
@@ -421,7 +446,7 @@ def run_task_handler_chain(state: PlanExecute):
     else:
         raise ValueError(
             "Invalid tool was outputted by task handler. Must be one of "
-            f"'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer_from_context'. "
+            f"'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', 'web_search', or 'answer_from_context'. "
             f"Got: {output.tool!r}"
         )
     return state
@@ -445,12 +470,14 @@ def retrieve_or_answer(state: PlanExecute):
         return "chosen_tool_is_retrieve_summaries"
     elif state["tool"] == "retrieve_quotes":
         return "chosen_tool_is_retrieve_quotes"
+    elif state["tool"] == "web_search":
+        return "chosen_tool_is_web_search"
     elif state["tool"] == "answer":
         return "chosen_tool_is_answer"
     else:
         raise ValueError(
             "Invalid tool in state. Must be one of "
-            f"'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer'. "
+            f"'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', 'web_search', or 'answer'. "
             f"Got: {state['tool']!r}"
         )
 

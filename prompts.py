@@ -115,9 +115,10 @@ Rules:
    i. Retrieve relevant information from the vector store of book chunks.
    ii. Retrieve relevant information from the vector store of chapter summaries.
    iii. Retrieve relevant information from the vector store of book quotes.
-   iv. Answer a question using the provided context.
+   iv. Search the public web for information not contained in the book.
+   v. Answer a question using the provided context.
 3. Every refined step must be executable by exactly one of the capabilities above.
-4. Always select the highest-priority capability that can accomplish the step. Only use a lower-priority capability when a higher-priority one is clearly unsuitable.
+4. Select whichever capability is most likely to hold the information the step needs. The list order above is only a tiebreak when several capabilities are equally plausible - it is not a strict ranking, so do not default to a higher-priority capability once a better-suited one is available.
 5. Each step must contain all information required for execution. Rewrite ambiguous references (for example, "it", "this", or "the previous result") into explicit instructions.
 6. Split compound steps into multiple executable steps when necessary, but do not introduce unnecessary steps or change the intent of the original plan.
 Output only the refined plan.
@@ -151,13 +152,15 @@ retrieve_summaries: a tool that retrieves relevant information from a vector sto
 - use retrieve_summaries when you think the current task should search for information in the chapter summaries.
 retrieve_quotes: a tool that retrieves relevant information from a vector store of quotes from the book based on a given query.
 - use retrieve_quotes when you think the current task should search for information in the book quotes.
+web_search: a tool that searches the public web for information.
+- use web_search when the current task asks for information that is not contained in the book itself (real-world facts, the author, publication details, events outside the story).
 answer_from_context: a tool that answers a question from a given context.
 - use answer_from_context ONLY when you the current task can be answered by the aggregated context {aggregated_context}
 You also receive the last tool used {last_tool}
 if {last_tool} was retrieve_chunks, use other tools than retrieve_chunks.
 You also have the past steps {past_steps} that you can use to make decisions and understand the context of the task.
 You also have the initial user's question {question} that you can use to make decisions and understand the context of the task.
-The tool field in your output must be set to exactly one of: retrieve_chunks, retrieve_summaries, retrieve_quotes, answer_from_context.
+The tool field in your output must be set to exactly one of: retrieve_chunks, retrieve_summaries, retrieve_quotes, web_search, answer_from_context.
 """
 
 anonymize_question_prompt_template = """

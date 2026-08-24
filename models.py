@@ -59,6 +59,8 @@ class QualitativeRetrievalGraphState(TypedDict):
         distill_attempts (int): Number of times the distill/ground loop has run.
         grounded (bool): Whether the distilled content was judged grounded on the original context.
         grounding_feedback (str): Explanation from the grounding check, fed back into the next distill attempt.
+        sources (List[str]): Source URLs for the retrieved context. Only populated by the web
+            search sub-graph; the three vector-store sub-graphs leave this unset.
     """
 
     question: str
@@ -69,6 +71,7 @@ class QualitativeRetrievalGraphState(TypedDict):
     distill_attempts: int
     grounded: bool
     grounding_feedback: str
+    sources: List[str]
 
 
 class QualitativeAnswerGraphState(TypedDict):
@@ -161,16 +164,17 @@ class ActPossibleResults(BaseModel):
 class TaskHandlerOutput(BaseModel):
     """
     Output schema for the task handler.
-    - tool: The tool to be used; should be one of 'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', or 'answer_from_context'.
+    - tool: The tool to be used; should be one of 'retrieve_chunks', 'retrieve_summaries', 'retrieve_quotes', 'web_search', or 'answer_from_context'.
     """
 
     tool: Literal[
         "retrieve_chunks",
         "retrieve_summaries",
         "retrieve_quotes",
+        "web_search",
         "answer_from_context",
     ] = Field(
-        description="The tool to be used should be either retrieve_chunks, retrieve_summaries, retrieve_quotes, or answer_from_context."
+        description="The tool to be used should be either retrieve_chunks, retrieve_summaries, retrieve_quotes, web_search, or answer_from_context."
     )
 
 
