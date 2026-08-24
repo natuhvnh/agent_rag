@@ -14,6 +14,8 @@ logger = logging.getLogger("rag_agent.score")
 RECURSION_LIMIT = 45
 _app = None
 _recursion_error = None
+_timing_summary = None
+_token_summary = None
 
 
 def init():
@@ -23,13 +25,16 @@ def init():
     unreachable Cosmos account -- lands in the "Invoking user's init function" section
     of the deployment log instead of failing silently at import.
     """
-    global _app, _recursion_error
+    global _app, _recursion_error, _timing_summary, _token_summary
     started = time.perf_counter()
     from langgraph.errors import GraphRecursionError
     from graphs import plan_and_execute_app
+    from helper_functions import timing_summary, token_summary
 
     _app = plan_and_execute_app
     _recursion_error = GraphRecursionError
+    _timing_summary = timing_summary
+    _token_summary = token_summary
     logger.info("init complete in %.1fs", time.perf_counter() - started)
 
 
@@ -81,6 +86,8 @@ def _run_agent(question):
         return
 
     final_state = final_state or {}
+    _timing_summary(final_state, time.perf_counter() - started)
+    _token_summary(final_state)
     yield {
         "type": "final",
         "response": final_state.get("response"),
