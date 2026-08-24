@@ -202,9 +202,9 @@ def build_agent_workflow():
     agent_workflow.add_edge("get_final_answer", END)
     final_workflow = agent_workflow.compile()
     #
-    graph_png = final_workflow.get_graph(xray=True).draw_mermaid_png()
-    with open("rag_agent_workflow.png", "wb") as f:
-        f.write(graph_png)
+    # graph_png = final_workflow.get_graph(xray=True).draw_mermaid_png()
+    # with open("rag_agent_workflow.png", "wb") as f:
+    #     f.write(graph_png)
     return final_workflow
 
 
