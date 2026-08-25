@@ -1,0 +1,14 @@
+.git/
+.claude/
+.ipynb_checkpoints/
+__pycache__/
+.env
+*.ipynb
+*.png
+.DS_Store
+docs/
+processed_docs/
+embedding/*_vector_store/
+embedding/chapter_summaries_vector_store/
+embedding/chunks_vector_store/
+embedding/book_quotes_vectorstore/

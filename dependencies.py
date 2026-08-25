@@ -148,9 +148,10 @@ is_grounded_on_facts_prompt = PromptTemplate(
     template=is_grounded_on_facts_prompt_template,
     input_variables=["context", "answer"],
 )
-is_grounded_on_facts_chain = is_grounded_on_facts_prompt | llm.with_structured_output(
-    IsGroundedOnFacts
-)
+is_grounded_on_facts_chain = (
+    is_grounded_on_facts_prompt
+    | llm.with_structured_output(IsGroundedOnFacts)
+).with_config(tags=["nostream"])
 # Create the prompt object for the LLM
 can_be_answered_json_parser = JsonOutputParser(pydantic_object=QuestionAnswer)
 answer_question_prompt = PromptTemplate(
@@ -178,6 +179,13 @@ question_answer_from_context_cot_prompt = PromptTemplate(
 question_answer_from_context_cot_chain = (
     question_answer_from_context_cot_prompt
     | llm.with_structured_output(QuestionAnswerFromContext)
+)
+# Plain-text variant of the chain above, used only for the final-answer step so tokens
+# stream as clean prose deltas instead of a raw JSON document. with_structured_output's
+# json_schema mode streams the JSON text character-by-character, which is unusable for
+# token-by-token display.
+question_answer_from_context_cot_chain_streaming = (
+    question_answer_from_context_cot_prompt | llm
 )
 # Create the chain for checking if distilled content is grounded on the original context
 is_distilled_content_grounded_on_content_json_parser = JsonOutputParser(

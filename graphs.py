@@ -15,6 +15,7 @@ from nodes import (
     retrieve_book_quotes_context_per_question,
     web_search_context_per_question,
     answer_question_from_context,
+    answer_question_from_context_streaming,
     check_answer_grounded_on_context,
     route_after_answer_grounding,
     anonymize_queries,
@@ -132,6 +133,28 @@ def build_web_search_workflow():
 def build_qualitative_answer_workflow():
     workflow = StateGraph(QualitativeAnswerGraphState)
     workflow.add_node("answer_question_from_context", answer_question_from_context)
+    workflow.add_node("check_answer_grounding", check_answer_grounded_on_context)
+    workflow.set_entry_point("answer_question_from_context")
+    workflow.add_edge("answer_question_from_context", "check_answer_grounding")
+    workflow.add_conditional_edges(
+        "check_answer_grounding",
+        route_after_answer_grounding,
+        {"hallucination": "answer_question_from_context", "grounded on context": END},
+    )
+    return workflow.compile()
+
+
+#
+def build_qualitative_answer_workflow_streaming():
+    """
+    Same shape as build_qualitative_answer_workflow, but its entry node calls the
+    plain-text streaming chain (see answer_question_from_context_streaming) so the
+    final answer streams as clean prose tokens. Used only by
+    run_qualitative_answer_workflow_for_final_answer -- the mid-plan "answer" step keeps
+    using the structured version above, unchanged.
+    """
+    workflow = StateGraph(QualitativeAnswerGraphState)
+    workflow.add_node("answer_question_from_context", answer_question_from_context_streaming)
     workflow.add_node("check_answer_grounding", check_answer_grounded_on_context)
     workflow.set_entry_point("answer_question_from_context")
     workflow.add_edge("answer_question_from_context", "check_answer_grounding")
@@ -363,7 +386,7 @@ def run_qualitative_answer_workflow_for_final_answer(state, config: RunnableConf
     context = state["aggregated_context"]
     inputs = {"question": question, "context": context}
     sub_config = {"recursion_limit": config.get("recursion_limit") or 45}
-    for output in qualitative_answer_workflow_app.stream(inputs, config=sub_config):
+    for output in qualitative_answer_workflow_streaming_app.stream(inputs, config=sub_config):
         for _, value in output.items():
             pass
         pprint("--------------------")
@@ -381,4 +404,5 @@ qualitative_book_quotes_retrieval_workflow_app = (
 )
 web_search_workflow_app = build_web_search_workflow()
 qualitative_answer_workflow_app = build_qualitative_answer_workflow()
+qualitative_answer_workflow_streaming_app = build_qualitative_answer_workflow_streaming()
 plan_and_execute_app = build_agent_workflow()

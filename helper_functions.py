@@ -12,10 +12,6 @@ import tiktoken
 import inspect
 import functools
 import time
-import PyPDF2
-import pylcs
-import pandas as pd
-import dill
 from typing import Optional
 from langchain_core.documents import Document
 from langchain_core.callbacks import get_usage_metadata_callback
@@ -192,6 +188,8 @@ def is_similarity_ratio_lower_than_th(large_string, short_string, th):
         bool: True if the similarity ratio is lower than the threshold, False otherwise.
     """
     # Calculate the length of the longest common subsequence (LCS)
+    import pylcs
+
     lcs = pylcs.lcs_sequence_length(large_string, short_string)
 
     # Calculate the similarity ratio
@@ -208,6 +206,8 @@ def analyse_metric_results(results_df):
     Args:
         results_df (pandas.DataFrame): A pandas DataFrame containing the metric results.
     """
+    import pandas as pd
+
     metric_descriptions = {
         "faithfulness": "Measures how well the generated answer is supported by the retrieved documents.",
         "answer_relevancy": "Measures how relevant the generated answer is to the question.",
@@ -247,6 +247,8 @@ def save_object(obj, filename):
         obj: The Python object to save.
         filename (str): The name of the file where the object will be saved.
     """
+    import dill
+
     with open(filename, "wb") as file:
         dill.dump(obj, file)
     print(f"Object has been saved to '{filename}'.")
@@ -262,6 +264,8 @@ def load_object(filename):
     Returns:
         object: The loaded Python object.
     """
+    import dill
+
     with open(filename, "rb") as file:
         obj = dill.load(file)
     print(f"Object has been loaded from '{filename}'.")

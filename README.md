@@ -14,6 +14,13 @@ jupyter lab data_processing.ipynb   # (re)build chapter summaries / chunks / quo
 Requires an `.env` file configuring an Azure-hosted OpenAI-compatible endpoint (chat model +
 embeddings).
 
+## Deployment
+
+`server.py` exposes the agent over FastAPI (`GET /healthz`, `POST /ask`, with SSE streaming
+of the final answer only). `deployment.py` builds and deploys it to Azure Container Apps —
+run `python3 deployment.py` (needs `az login` and an existing resource group). Test a live
+endpoint with `python3 test_endpoint.py`.
+
 ## How it works
 
 1. **Anonymize** the question (named entities → `X`/`Y`/`Z`) so the planner isn't biased by prior
