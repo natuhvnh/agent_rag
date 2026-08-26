@@ -4,7 +4,7 @@ from collections import defaultdict
 from dependencies import (
     keep_only_relevant_content_chain,
     question_answer_from_context_cot_chain,
-    question_answer_from_context_cot_chain_streaming,
+    final_answer_chain_streaming,
     is_distilled_content_grounded_on_content_chain,
     is_grounded_on_facts_chain,
     task_handler_chain,
@@ -126,13 +126,6 @@ def answer_question_from_context(state):
 
 
 def answer_question_from_context_streaming(state):
-    """
-    Same as answer_question_from_context, but calls the plain-text chain so tokens
-    stream as clean prose instead of raw JSON deltas. Used only by the final-answer
-    sub-graph invocation (graphs.py's run_qualitative_answer_workflow_for_final_answer),
-    so its checkpoint namespace (which starts with "get_final_answer:") is what
-    server.py filters streamed tokens on -- no new state field required.
-    """
     question = state["question"]
     context = (
         state["aggregated_context"]
@@ -151,7 +144,7 @@ def answer_question_from_context_streaming(state):
 
     input_data = {"question": question, "context": context, "feedback": feedback}
     print("Answering the question from the retrieved context (streaming)...")
-    output = question_answer_from_context_cot_chain_streaming.invoke(input_data)
+    output = final_answer_chain_streaming.invoke(input_data)
     answer = output.content
     print(f"answer before checking hallucination: {answer}")
     return {

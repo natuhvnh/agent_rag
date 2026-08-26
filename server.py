@@ -30,11 +30,19 @@ RECURSION_LIMIT = 45
 # var and load_dotenv() is a no-op.
 load_dotenv()
 API_KEY = os.environ["rag_api_key"]
+if not API_KEY:
+    # An empty string passes os.environ[...] but would make compare_digest("", "") true
+    # for a request with no header at all -- i.e. /ask silently unauthenticated.
+    raise RuntimeError("rag_api_key is empty -- refusing to start with /ask unauthenticated.")
+# Compared as bytes below: Starlette decodes header bytes as latin-1, so a non-ASCII
+# x-api-key value would otherwise raise TypeError out of compare_digest (str, str) --
+# an unhandled 500 on an unauthenticated path instead of a clean 401.
+API_KEY_BYTES = API_KEY.encode()
 
 
 def require_api_key(x_api_key: str = Header(None)):
     # compare_digest, not ==, so response time doesn't leak the key prefix.
-    if not secrets.compare_digest(x_api_key or "", API_KEY):
+    if not secrets.compare_digest((x_api_key or "").encode(), API_KEY_BYTES):
         raise HTTPException(status_code=401, detail="Invalid or missing x-api-key")
 
 _app_graph = None

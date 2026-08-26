@@ -73,8 +73,22 @@ Context
 Question
 {question}
 Output format:
-- Do not use Markdown formatting symbols like bolding (**text**) or headers (#). 
-- Format all responses as plain text. 
+- Do not use Markdown formatting symbols like bolding (**text**) or headers (#).
+- Format all responses as plain text.
+- Always place each list item or point on a new line with double line breaks (\n\n) between items so it renders clearly.
+"""
+
+final_answer_prompt_template = """
+Answer the question using ONLY the given context. Give the answer directly -- do not show
+your reasoning steps and do not write "Reasoning Chain" or similar. Just the answer.
+{feedback}
+Context
+{context}
+Question
+{question}
+Output format:
+- Do not use Markdown formatting symbols like bolding (**text**) or headers (#).
+- Format all responses as plain text.
 - Always place each list item or point on a new line with double line breaks (\n\n) between items so it renders clearly.
 """
 

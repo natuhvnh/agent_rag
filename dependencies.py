@@ -28,6 +28,7 @@ from prompts import (
     can_be_answered_prompt_template,
     is_distilled_content_grounded_on_content_prompt_template,
     question_answer_cot_prompt_template,
+    final_answer_prompt_template,
     tasks_handler_prompt_template,
     anonymize_question_prompt_template,
     can_be_answered_already_prompt_template,
@@ -180,13 +181,11 @@ question_answer_from_context_cot_chain = (
     question_answer_from_context_cot_prompt
     | llm.with_structured_output(QuestionAnswerFromContext)
 )
-# Plain-text variant of the chain above, used only for the final-answer step so tokens
-# stream as clean prose deltas instead of a raw JSON document. with_structured_output's
-# json_schema mode streams the JSON text character-by-character, which is unusable for
-# token-by-token display.
-question_answer_from_context_cot_chain_streaming = (
-    question_answer_from_context_cot_prompt | llm
+final_answer_prompt = PromptTemplate(
+    template=final_answer_prompt_template,
+    input_variables=["context", "question", "feedback"],
 )
+final_answer_chain_streaming = final_answer_prompt | llm
 # Create the chain for checking if distilled content is grounded on the original context
 is_distilled_content_grounded_on_content_json_parser = JsonOutputParser(
     pydantic_object=IsDistilledContentGroundedOnContent
