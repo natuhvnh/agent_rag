@@ -6,10 +6,13 @@ Container Apps.
 import asyncio
 import json
 import logging
+import os
+import secrets
 import time
 import warnings
 
-from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -21,6 +24,18 @@ warnings.filterwarnings(
 logger = logging.getLogger("rag_agent.server")
 
 RECURSION_LIMIT = 45
+
+# Loaded here (not just transitively via dependencies.py, which is imported later inside
+# _load()) so a missing key fails at import time. In ACA the value arrives as a real env
+# var and load_dotenv() is a no-op.
+load_dotenv()
+API_KEY = os.environ["rag_api_key"]
+
+
+def require_api_key(x_api_key: str = Header(None)):
+    # compare_digest, not ==, so response time doesn't leak the key prefix.
+    if not secrets.compare_digest(x_api_key or "", API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing x-api-key")
 
 _app_graph = None
 _recursion_error = None
@@ -152,7 +167,7 @@ def _run_agent(question):
     }
 
 
-@app.post("/ask")
+@app.post("/ask", dependencies=[Depends(require_api_key)])
 async def ask(payload: AskRequest, request: Request):
     question = payload.question
 

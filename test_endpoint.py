@@ -13,6 +13,9 @@ import os
 import sys
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DEFAULT_URL = "https://rag-agent.salmonground-3ab76589.uksouth.azurecontainerapps.io"
 DEFAULT_QUESTION = "Search the web and give me the answer for question How Event Order API (POS) works ?"
@@ -20,7 +23,15 @@ DEFAULT_QUESTION = "Search the web and give me the answer for question How Event
 url = os.environ.get("ENDPOINT_URL", DEFAULT_URL).rstrip("/") + "/ask"
 question = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_QUESTION
 
-headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+api_key = os.environ.get("rag_api_key")
+if not api_key:
+    sys.exit("rag_api_key is not set (check .env or export it) -- the server will reject this request.")
+
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream",
+    "x-api-key": api_key,
+}
 terminal = None
 steps = 0
 streamed_answer = ""

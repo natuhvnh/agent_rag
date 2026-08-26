@@ -61,6 +61,7 @@ REQUIRED_SECRETS = [
     "cosmos_url",
     "cosmos_key",
     "tavily_key",
+    "rag_api_key",
 ]
 
 
@@ -265,6 +266,7 @@ def create_or_update_containerapp(acr_server, image, acr_username, acr_password,
         "cosmos_url": "cosmos-url",
         "cosmos_key": "cosmos-key",
         "tavily_key": "tavily-key",
+        "rag_api_key": "rag-api-key",
     }
     for env_key, secret_key in secret_names.items():
         secret_args.append(f"{secret_key}={secrets[env_key]}")
@@ -399,6 +401,7 @@ def print_summary(acr_server, image, url, healthy):
         print()
         print(f"curl -X POST {url}/ask \\")
         print("  -H 'content-type: application/json' \\")
+        print("  -H \"x-api-key: $rag_api_key\" \\")
         print("  -d '{\"question\":\"What is Hogwarts?\"}'")
         print()
         print("Note: ACA ingress caps a request at 240s. A cold, multi-step agent run can")
@@ -407,6 +410,7 @@ def print_summary(acr_server, image, url, healthy):
         print(f"curl -N -X POST {url}/ask \\")
         print("  -H 'content-type: application/json' \\")
         print("  -H 'accept: text/event-stream' \\")
+        print("  -H \"x-api-key: $rag_api_key\" \\")
         print("  -d '{\"question\":\"What is Hogwarts?\"}'")
         print()
     else:
