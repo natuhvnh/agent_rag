@@ -409,9 +409,8 @@ def print_summary(acr_server, image, url, healthy):
         print()
         print(f"curl -N -X POST {url}/ask \\")
         print("  -H 'content-type: application/json' \\")
-        print("  -H 'accept: text/event-stream' \\")
         print("  -H \"x-api-key: $rag_api_key\" \\")
-        print("  -d '{\"question\":\"What is Hogwarts?\"}'")
+        print("  -d '{\"question\":\"What is Hogwarts?\",\"stream\":true}'")
         print()
     else:
         print("Health         : FAILED")

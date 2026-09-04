@@ -12,7 +12,8 @@ import time
 import warnings
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -28,17 +29,11 @@ RECURSION_LIMIT = 45
 load_dotenv()
 API_KEY = os.environ["rag_api_key"]
 if not API_KEY:
-    # An empty string passes os.environ[...] but would make compare_digest("", "") true
-    # for a request with no header at all -- i.e. /ask silently unauthenticated.
     raise RuntimeError("rag_api_key is empty -- refusing to start with /ask unauthenticated.")
-# Compared as bytes below: Starlette decodes header bytes as latin-1, so a non-ASCII
-# x-api-key value would otherwise raise TypeError out of compare_digest (str, str) --
-# an unhandled 500 on an unauthenticated path instead of a clean 401.
 API_KEY_BYTES = API_KEY.encode()
 
 
 def require_api_key(x_api_key: str = Header(None)):
-    # compare_digest, not ==, so response time doesn't leak the key prefix.
     if not secrets.compare_digest((x_api_key or "").encode(), API_KEY_BYTES):
         raise HTTPException(status_code=401, detail="Invalid or missing x-api-key")
 
@@ -49,9 +44,21 @@ _token_summary = None
 
 app = FastAPI()
 
+# Any origin may call this API; requests are authorized by the x-api-key header, not by
+# cookies. allow_credentials stays False -- the CORS spec forbids pairing credentialed
+# requests with a wildcard origin, and browsers reject the combination.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class AskRequest(BaseModel):
     question: str
+    stream: bool = False
 
 
 @app.on_event("startup")
@@ -157,9 +164,6 @@ def _run_agent(question):
         return
 
     final_state = final_state or {}
-    # Diagnostics only. These index record fields unguarded, so a malformed
-    # node_timings/node_tokens entry raises -- which previously escaped this generator
-    # and stalled the SSE stream before the terminal event below was ever emitted.
     try:
         _timing_summary(final_state, time.perf_counter() - started)
         _token_summary(final_state)
@@ -173,10 +177,10 @@ def _run_agent(question):
 
 
 @app.post("/ask", dependencies=[Depends(require_api_key)])
-async def ask(payload: AskRequest, request: Request):
+async def ask(payload: AskRequest):
     question = payload.question
 
-    if "text/event-stream" in (request.headers.get("accept") or ""):
+    if payload.stream:
         async def sse():
             queue = asyncio.Queue()
             loop = asyncio.get_event_loop()

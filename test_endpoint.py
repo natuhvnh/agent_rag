@@ -29,17 +29,18 @@ if not api_key:
 
 headers = {
     "Content-Type": "application/json",
-    "Accept": "text/event-stream",
     "x-api-key": api_key,
 }
 terminal = None
 steps = 0
 streamed_answer = ""
 
-# stream=True disables buffering, equivalent to curl -N. The read timeout must exceed a
-# cold-start agent run; ACA ingress caps a request at 240s regardless.
 with requests.post(
-    url, headers=headers, json={"question": question}, stream=True, timeout=(10, 300)
+    url,
+    headers=headers,
+    json={"question": question, "stream": True},
+    stream=True,
+    timeout=(10, 300),
 ) as response:
     response.raise_for_status()
     for line in response.iter_lines():
@@ -80,8 +81,6 @@ if terminal["type"] == "error":
 answer = terminal.get("response")
 print(f"\n\n--- answer ({steps} steps, {terminal['elapsed']}s) ---")
 if not streamed_answer:
-    # Fell back to the non-streaming JSON path, or no tokens matched the filter --
-    # print the final response so the answer is still visible either way.
     print(answer or "<empty response>")
 
 print(f"\n--- diagnostics ---")
