@@ -21,6 +21,11 @@ of the final answer only). `deployment.py` builds and deploys it to Azure Contai
 run `python3 deployment.py` (needs `az login` and an existing resource group). Test a live
 endpoint with `python3 test_endpoint.py`.
 
+`main.py` exposes the same agent as an Azure AI Foundry hosted agent (Responses protocol,
+streaming the final answer only). `deploy_azure_foundry.py` uploads it as a code zip and
+deploys it — run `python3 deploy_azure_foundry.py` (needs `az login` with Foundry Project
+Manager on the project, and `FOUNDRY_PROJECT_ENDPOINT`/`FOUNDRY_HOSTED_AGENT_NAME` in `.env`).
+
 ## How it works
 
 1. **Anonymize** the question (named entities → `X`/`Y`/`Z`) so the planner isn't biased by prior

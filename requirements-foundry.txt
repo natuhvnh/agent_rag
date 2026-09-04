@@ -1,0 +1,20 @@
+# Runtime dependencies for main.py (Azure AI Foundry hosted-agent deploy), a subset of
+# requirements.txt. Kept separate because REMOTE_BUILD has no compiler available and
+# requirements.txt pins pylcs, which has no Linux wheel (see Dockerfile's build-essential
+# install) -- pylcs/dill/PyPDF2/azureml-inference-server-http are unused on this serving path,
+# and fastapi/uvicorn are server.py (Azure Container Apps) only.
+pydantic==2.12.3
+langchain==1.3.13
+langchain-core==1.4.9
+langchain-openai==1.1.6
+langchain-community==0.4.1
+langgraph==1.2.9
+langchain-azure-cosmosdb==1.0.0
+langchain-tavily==0.2.17
+azure-cosmos==4.9.0
+openai==2.44.0
+rank-bm25==0.2.2
+tiktoken==0.12.0
+python-dotenv==1.1.1
+azure-ai-agentserver-responses==2.1.0
+azure-identity
