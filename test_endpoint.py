@@ -84,8 +84,6 @@ if not streamed_answer:
     # print the final response so the answer is still visible either way.
     print(answer or "<empty response>")
 
-# Measure rather than eyeball whether the answer was cut: a length that lands near a
-# round token budget points at max_tokens, a short one points elsewhere.
 print(f"\n--- diagnostics ---")
 print(f"answer length : {len(answer or '')} chars (~{len((answer or '').split())} words)")
 with open("last_response.json", "w") as fh:

@@ -45,27 +45,21 @@ import re
 load_dotenv()
 # 1. Initialize LLMs and Embeddings
 azure_llm_key = os.getenv("azure_llm_key")
-# llm = ChatOpenAI(
-#     model="DeepSeek-V4-Flash",
-#     base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
-#     api_key=azure_llm_key,
-#     max_tokens=2048,
-#     temperature=0.1,
-#     timeout=60,
-#     max_retries=2,
-# )
 llm = ChatOpenAI(
-        model="DeepSeek-V4-Flash-0731", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash-0731
+        model="grok-4.3", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash-0731
         base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
         api_key=azure_llm_key,
         max_tokens=2048,
         temperature=0.1,
+        seed=42,
         reasoning_effort="none", # effort for all models: minimal, low, medium, high, none
         # model_kwargs={
         #     "extra_body": {
         #         "thinking": {"type": "disabled"} # Completely disables reasoning for DeepSeek endpoints
         #     }
         # }
+        # timeout=60,
+        # max_retries=1
     )
 #
 embedding_base_url = os.getenv("embedding_base_url")

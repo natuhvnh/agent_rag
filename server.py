@@ -1,6 +1,6 @@
 """
-FastAPI HTTP wrapper for the plan-and-execute RAG agent, for deployment on Azure
-Container Apps.
+FastAPI HTTP wrapper for the plan-and-execute RAG agent, for deployment on Azure Container Apps.
+python3 -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 """
 
 import asyncio
@@ -25,9 +25,6 @@ logger = logging.getLogger("rag_agent.server")
 
 RECURSION_LIMIT = 45
 
-# Loaded here (not just transitively via dependencies.py, which is imported later inside
-# _load()) so a missing key fails at import time. In ACA the value arrives as a real env
-# var and load_dotenv() is a no-op.
 load_dotenv()
 API_KEY = os.environ["rag_api_key"]
 if not API_KEY:
