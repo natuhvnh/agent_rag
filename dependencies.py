@@ -46,7 +46,7 @@ load_dotenv()
 # 1. Initialize LLMs and Embeddings
 azure_llm_key = os.getenv("azure_llm_key")
 llm = ChatOpenAI(
-        model="grok-4.3", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash-0731
+        model="DeepSeek-V4-Flash-0731", # grok-4.3, DeepSeek-V4-Pro, DeepSeek-V4-Flash-0731
         base_url="https://3t-ai-resource.services.ai.azure.com/openai/v1",
         api_key=azure_llm_key,
         max_tokens=2048,
@@ -132,7 +132,7 @@ with open("embedding/bm25.pkl", "rb") as f:
 bm25_retriever.k = 5
 
 web_search_tool = TavilySearch(
-    max_results=5,
+    max_results=3,
     include_domains=["3t-event.com"],
     api_wrapper=TavilySearchAPIWrapper(tavily_api_key=os.getenv("tavily_key")),
 )

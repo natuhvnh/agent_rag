@@ -58,6 +58,8 @@ app.add_middleware(
 
 class AskRequest(BaseModel):
     question: str
+    account_code: str
+    thread_id: str
     stream: bool = False
 
 
@@ -94,6 +96,8 @@ def _run_agent(question):
     exactly one terminal event of type "final" or "error". A stream that ends without
     a terminal event was truncated (e.g. the worker was killed mid-run).
     """
+    print("=" * 20 + "Question" + "=" * 20)
+    print(question)
     started = time.perf_counter()
     inputs = {
         "question": question,

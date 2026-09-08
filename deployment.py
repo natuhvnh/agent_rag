@@ -339,16 +339,6 @@ def create_or_update_containerapp(acr_server, image, acr_username, acr_password,
             ["az", "containerapp", "update", "--name", APP_NAME, "--resource-group", RG, "--set-env-vars", *env_var_args, "--output", "none"]
         )
 
-    # Health probes: `az containerapp create`/`update` have no
-    # --startup-probe/--readiness-probe/--liveness-probe flags (probes are only
-    # configurable via ARM template or `--yaml`, and `--yaml` replaces the whole
-    # object -- see https://learn.microsoft.com/en-us/azure/container-apps/health-probes
-    # and https://github.com/microsoft/azure-container-apps/issues/516). This relies
-    # on the ACA default probes instead: with ingress enabled, the default startup
-    # probe is TCP on the target port with a ~240s failure budget (240 attempts x 1s),
-    # comfortably longer than this app's ~10-20s cold start. Add a proper HTTP probe
-    # via Bicep/YAML if you need /healthz itself checked rather than just the TCP port.
-
 
 def get_fqdn():
     log("Getting application URL")

@@ -31,6 +31,12 @@ headers = {
     "Content-Type": "application/json",
     "x-api-key": api_key,
 }
+payload = {
+    "question": question,
+    "stream": True,
+    "thread_id": "thread_123",
+    "account_code": "abc"
+}
 terminal = None
 steps = 0
 streamed_answer = ""
@@ -38,7 +44,7 @@ streamed_answer = ""
 with requests.post(
     url,
     headers=headers,
-    json={"question": question, "stream": True},
+    json=payload,
     stream=True,
     timeout=(10, 300),
 ) as response:
